@@ -54,7 +54,7 @@ class HooksWarning {
         }
 
         $textdomain     = Bootstrap::textdomain();
-        $script_version = Bootstrap::version();
+        $script_version = Bootstrap::script_version();
 
         wp_register_script( $textdomain . '-core', false, [ 'jquery' ], $script_version, true );
         wp_enqueue_script( $textdomain . '-core' );
@@ -87,7 +87,7 @@ class HooksWarning {
         }
 
         $textdomain     = Bootstrap::textdomain();
-        $script_version = Bootstrap::version();
+        $script_version = Bootstrap::script_version();
 
         wp_register_script( $textdomain . '-core', false, [ 'jquery' ], $script_version, true );
         wp_enqueue_script( $textdomain . '-core' );
@@ -120,7 +120,7 @@ class HooksWarning {
         }
 
         $textdomain     = Bootstrap::textdomain();
-        $script_version = Bootstrap::version();
+        $script_version = Bootstrap::script_version();
 
         wp_register_script( $textdomain . '-core', false, [ 'jquery' ], $script_version, true );
         wp_enqueue_script( $textdomain . '-core' );

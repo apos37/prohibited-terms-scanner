@@ -141,6 +141,8 @@ class Ajax {
         try {
             $result = Scanner::instance()->run_batch( $location_type, $terms, $offset, $batch_size );
         } catch ( \Throwable $e ) {
+            ErrorLog::instance()->log( 'scan_batch', $e->getMessage(), [ 'location_type' => $location_type ] );
+
             wp_send_json_error( [
                 // translators: %s is the error message.
                 'message' => sprintf( __( 'Scan error for this location type, skipping remainder: %s', 'prohibited-terms-scanner' ), $e->getMessage() ),

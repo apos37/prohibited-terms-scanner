@@ -6,7 +6,7 @@
  * Version:             1.0.0
  * Requires at least:   6.0
  * Tested up to:        7.0
- * Requires PHP:        8.0
+ * Requires PHP:        7.4
  * Author:              PluginRx
  * Author URI:          https://pluginrx.com/
  * Text Domain:         prohibited-terms-scanner
@@ -31,6 +31,7 @@ final class Bootstrap {
      */
     public const FILES = [
         'inc/omits.php',
+        'inc/error-log.php',
         'inc/db.php',
         'inc/type-registry.php',
         'inc/settings.php',
@@ -123,6 +124,8 @@ final class Bootstrap {
      * @return void
      */
     public function activate() {
+        require_once self::path( 'inc/db.php' );
+
         DB::instance()->create_table();
     } // End activate()
 
@@ -162,6 +165,31 @@ final class Bootstrap {
     public static function version() : string {
         return self::meta( 'version' );
     } // End version()
+
+
+     /**
+     * Check if test mode is enabled
+     *
+     * @return bool
+     */
+    public static function is_test_mode() : bool {
+        return filter_var( apply_filters( 'ptscanner_test_mode', get_option( 'ddtt_test_mode' ) ), FILTER_VALIDATE_BOOLEAN );
+    } // End is_test_mode()
+
+
+    /**
+     * Script version — busts cache on every load in test mode, otherwise
+     * uses the plugin's actual version number
+     *
+     * @return string
+     */
+    public static function script_version() : string {
+        if ( self::is_test_mode() ) {
+            return 'TEST-' . time();
+        }
+
+        return self::version();
+    } // End script_version()
 
 
     /**

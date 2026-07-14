@@ -94,7 +94,7 @@ class FrontEnd {
      */
     private function enqueue_scanner_assets() {
         $textdomain     = Bootstrap::textdomain();
-        $script_version = Bootstrap::version();
+        $script_version = Bootstrap::script_version();
 
         wp_enqueue_style(
             $textdomain . '-admin',
@@ -174,7 +174,7 @@ class FrontEnd {
         }
 
         $textdomain     = Bootstrap::textdomain();
-        $script_version = Bootstrap::version();
+        $script_version = Bootstrap::script_version();
 
         wp_enqueue_style(
             $textdomain . '-highlight',

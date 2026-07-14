@@ -206,8 +206,9 @@ class Scanner {
                 continue;
             }
 
-            $content = get_post_field( 'post_content', $post_id );
-            $matches = $this->match_terms( $content, $terms );
+            $raw_content = get_post_field( 'post_content', $post_id );
+            $content     = $this->safe_do_shortcode( $raw_content, $post_id );
+            $matches     = $this->match_terms( $content, $terms );
 
             foreach ( $matches as $match ) {
                 $rows[] = $this->build_row( $match, 'content', 'post', $post_id, get_permalink( $post_id ) );
@@ -216,6 +217,34 @@ class Scanner {
 
         return [ 'rows' => $rows, 'done' => count( $post_ids ) < $limit ];
     } // End scan_content()
+
+
+    /**
+     * Run do_shortcode() defensively; on error, log it and fall back to the
+     * raw (un-expanded) content so the post still gets scanned rather than skipped
+     *
+     * @param string $content
+     * @param int    $post_id
+     * @return string
+     */
+    private function safe_do_shortcode( $content, $post_id ) : string {
+        $previous_handler = set_error_handler( function ( $errno, $errstr ) {
+            throw new \ErrorException( $errstr, 0, $errno );
+        } );
+
+        try {
+            $expanded = do_shortcode( $content );
+            restore_error_handler();
+
+            return $expanded;
+        } catch ( \Throwable $e ) {
+            restore_error_handler();
+
+            ErrorLog::instance()->log( 'shortcode', $e->getMessage(), [ 'post_id' => $post_id ] );
+
+            return $content;
+        }
+    } // End safe_do_shortcode()
 
 
     /**

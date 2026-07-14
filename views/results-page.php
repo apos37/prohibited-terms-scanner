@@ -19,6 +19,11 @@ $ignored_url = add_query_arg( 'status', 'ignored', $base_url );
 <div class="wrap ptscanner-wrap ptscanner-results-page">
     <header class="ptscanner-header">
         <h1><?php esc_html_e( 'Results', 'prohibited-terms-scanner' ); ?></h1>
+        <p>
+            <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $textdomain ) ); ?>">
+                &larr; <?php esc_html_e( 'Back to Scanner', 'prohibited-terms-scanner' ); ?>
+            </a>
+        </p>
     </header>
 
     <ul class="subsubsub">
@@ -54,7 +59,7 @@ $ignored_url = add_query_arg( 'status', 'ignored', $base_url );
                 <?php foreach ( $data[ 'rows' ] as $row ) : ?>
                     <tr id="ptscanner-row-<?php echo absint( $row[ 'id' ] ); ?>" data-id="<?php echo absint( $row[ 'id' ] ); ?>">
                         <td><strong><?php echo esc_html( $row[ 'term' ] ); ?></strong></td>
-                        <td><?php echo esc_html( $row[ 'context_snippet' ] ); ?><?php if ( ! empty( $row[ 'file_page' ] ) ) : ?>
+                        <td><?php echo wp_kses( $row[ 'context_highlighted' ], [ 'strong' => [ 'class' => [] ] ] ); ?><?php if ( ! empty( $row[ 'file_page' ] ) ) : ?>
                                 <br><em><?php
                                     printf(
                                         /* translators: %d: file page number */

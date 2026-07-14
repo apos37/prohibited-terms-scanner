@@ -61,6 +61,27 @@ jQuery( function ( $ ) {
                 this.frontPage = $( event.currentTarget ).data( 'page' );
                 this.loadFrontResults();
             } );
+
+            $( document ).on( 'click', '#ptscanner-clear-errors', ( event ) => {
+                if ( ! confirm( 'Clear all logged errors?' ) ) {
+                    return;
+                }
+
+                const button = $( event.currentTarget );
+                button.prop( 'disabled', true );
+
+                $.post( ptscanner_data.ajaxUrl, {
+                    action: 'ptscanner_clear_errors',
+                    nonce: ptscanner_data.nonce,
+                } ).done( ( response ) => {
+                    if ( response.success ) {
+                        window.location.reload();
+                    } else {
+                        button.prop( 'disabled', false );
+                        alert( response.data.message || 'Could not clear errors.' );
+                    }
+                } );
+            } );
         }, // End bindEvents()
 
 
@@ -122,7 +143,7 @@ jQuery( function ( $ ) {
 
             tr.append( $( '<td></td>' ).append( $( '<strong></strong>' ).text( row.term ) ) );
 
-            const contextCell = $( '<td></td>' ).text( row.context_snippet );
+            const contextCell = $( '<td></td>' ).html( this.highlightTerm( row.context_snippet, row.term ) );
             if ( row.file_page ) {
                 contextCell.append( $( '<br>' ) ).append( $( '<em></em>' ).text( 'Page ' + row.file_page ) );
             }
@@ -152,6 +173,32 @@ jQuery( function ( $ ) {
 
             return tr;
         }, // End buildRow()
+
+
+        /**
+         * Wrap the first case-insensitive occurrence of a term in HTML-escaped snippet text
+         *
+         * @param {string} snippet
+         * @param {string} term
+         * @return {string}
+         */
+        highlightTerm: function ( snippet, term ) {
+            const div = document.createElement( 'div' );
+            div.textContent = snippet;
+            const escapedSnippet = div.innerHTML;
+
+            const termDiv = document.createElement( 'div' );
+            termDiv.textContent = term;
+            const escapedTerm = termDiv.innerHTML;
+
+            if ( ! escapedTerm ) {
+                return escapedSnippet;
+            }
+
+            const pattern = new RegExp( escapedTerm.replace( /[.*+?^${}()|[\]\\]/g, '\\$&' ), 'i' );
+
+            return escapedSnippet.replace( pattern, ( match ) => '<strong class="ptscanner-highlighted-term">' + match + '</strong>' );
+        }, // End highlightTerm()
 
 
         /**

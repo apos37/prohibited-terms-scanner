@@ -83,8 +83,7 @@ class ResultsPageData {
 
 
     /**
-     * Enrich a raw DB row with a display link, generated via the type
-     * registry's link_callback so third-party types resolve correctly
+     * Enrich a raw DB row with a display link and a highlighted context snippet
      *
      * @param array $row
      * @return array
@@ -93,6 +92,7 @@ class ResultsPageData {
         $type = TypeRegistry::instance()->get_type( $row[ 'location_type' ] );
 
         $row[ 'location_label' ] = $type[ 'label' ] ?? ucwords( str_replace( '_', ' ', $row[ 'location_type' ] ) );
+        $row[ 'context_highlighted' ] = $this->highlight_term( $row[ 'context_snippet' ], $row[ 'term' ] );
 
         $link = '';
 
@@ -120,5 +120,27 @@ class ResultsPageData {
 
         return $row;
     } // End enrich_row()
+
+
+    /**
+     * Wrap the first case-insensitive occurrence of a term in a snippet with
+     * a bold/highlighted span, escaping everything else safely
+     *
+     * @param string $snippet
+     * @param string $term
+     * @return string
+     */
+    private function highlight_term( $snippet, $term ) : string {
+        $escaped_snippet = esc_html( $snippet );
+        $escaped_term    = esc_html( $term );
+
+        if ( '' === $escaped_term ) {
+            return $escaped_snippet;
+        }
+
+        $pattern = '/' . preg_quote( $escaped_term, '/' ) . '/i';
+
+        return preg_replace( $pattern, '<strong class="ptscanner-highlighted-term">$0</strong>', $escaped_snippet, 1 );
+    } // End highlight_term()
 
 }

@@ -11,6 +11,16 @@ class AdminMenu {
 
 
     /**
+     * Actual registered screen hook suffixes, captured from add_submenu_page()
+     * return values rather than guessed, since WP derives the parent portion
+     * of the hook from the sanitized menu title, not the menu slug
+     *
+     * @var array
+     */
+    private array $screen_hooks = [];
+
+
+    /**
      * The single instance of the class
      *
      * @var self|null
@@ -45,7 +55,7 @@ class AdminMenu {
     public function register_menu() {
         $textdomain = Bootstrap::textdomain();
 
-        add_menu_page(
+        $this->screen_hooks[] = add_menu_page(
             Bootstrap::name(),
             __( 'Term Scanner', 'prohibited-terms-scanner' ),
             'manage_options',
@@ -55,7 +65,7 @@ class AdminMenu {
             80
         );
 
-        add_submenu_page(
+        $this->screen_hooks[] = add_submenu_page(
             $textdomain,
             __( 'Scanner', 'prohibited-terms-scanner' ),
             __( 'Scanner', 'prohibited-terms-scanner' ),
@@ -64,7 +74,7 @@ class AdminMenu {
             [ $this, 'render_scanner_page' ]
         );
 
-        add_submenu_page(
+        $this->screen_hooks[] = add_submenu_page(
             $textdomain,
             __( 'Results', 'prohibited-terms-scanner' ),
             __( 'Results', 'prohibited-terms-scanner' ),
@@ -73,7 +83,7 @@ class AdminMenu {
             [ $this, 'render_results_page' ]
         );
 
-        add_submenu_page(
+        $this->screen_hooks[] = add_submenu_page(
             $textdomain,
             __( 'Settings', 'prohibited-terms-scanner' ),
             __( 'Settings', 'prohibited-terms-scanner' ),
@@ -82,7 +92,7 @@ class AdminMenu {
             [ $this, 'render_settings_page' ]
         );
 
-        add_submenu_page(
+        $this->screen_hooks[] = add_submenu_page(
             $textdomain,
             __( 'Import/Export', 'prohibited-terms-scanner' ),
             __( 'Import/Export', 'prohibited-terms-scanner' ),
@@ -90,23 +100,25 @@ class AdminMenu {
             $textdomain . '_import_export',
             [ $this, 'render_import_export_page' ]
         );
+
+        $this->screen_hooks[] = add_submenu_page(
+            $textdomain,
+            __( 'Errors', 'prohibited-terms-scanner' ),
+            __( 'Errors', 'prohibited-terms-scanner' ),
+            'manage_options',
+            $textdomain . '_errors',
+            [ $this, 'render_errors_page' ]
+        );
     } // End register_menu()
 
 
     /**
-     * Get this plugin's admin screen IDs, used to gate asset enqueuing
+     * Get this plugin's actual registered screen hook suffixes
      *
      * @return array
      */
     private function screen_ids() : array {
-        $textdomain = Bootstrap::textdomain();
-
-        return [
-            'toplevel_page_' . $textdomain,
-            $textdomain . '_page_' . $textdomain . '_results',
-            $textdomain . '_page_' . $textdomain . '_settings',
-            $textdomain . '_page_' . $textdomain . '_import_export',
-        ];
+        return array_filter( $this->screen_hooks );
     } // End screen_ids()
 
 
@@ -124,7 +136,7 @@ class AdminMenu {
         }
 
         $textdomain     = Bootstrap::textdomain();
-        $script_version = Bootstrap::version();
+        $script_version = Bootstrap::script_version();
 
         wp_enqueue_style(
             $textdomain . '-admin',
@@ -194,8 +206,9 @@ class AdminMenu {
             );
         }
 
-        // Results page.
-        if ( $current_screen->id === $textdomain . '_page_' . $textdomain . '_results' ) {
+        // Results page and Errors page (both use results.js's simple button-click pattern).
+        if ( $current_screen->id === $textdomain . '_page_' . $textdomain . '_results'
+            || $current_screen->id === $textdomain . '_page_' . $textdomain . '_errors' ) {
             wp_enqueue_script(
                 $textdomain . '-results',
                 Bootstrap::url( 'inc/js/results.js' ),
@@ -290,6 +303,22 @@ class AdminMenu {
 
         require Bootstrap::path( 'views/import-export-page.php' );
     } // End render_import_export_page()
+
+
+    /**
+     * Render: Errors page
+     *
+     * @return void
+     */
+    public function render_errors_page() {
+        if ( ! current_user_can( 'manage_options' ) ) {
+            return;
+        }
+
+        $errors = ErrorLog::instance()->get_errors();
+
+        require Bootstrap::path( 'views/errors-page.php' );
+    } // End render_errors_page()
 
 }
 

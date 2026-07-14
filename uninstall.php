@@ -30,6 +30,7 @@ function ptscanner_uninstall_option_keys() : array {
         'ptscanner_default_strict',
         'ptscanner_shortcode_roles',
         'ptscanner_omits',
+        'ptscanner_error_log',
     ];
 } // End ptscanner_uninstall_option_keys()
 

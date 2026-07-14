@@ -82,7 +82,8 @@ jQuery( function ( $ ) {
 
             $.each( groups, ( groupName, types ) => {
                 const groupWrap = $( '<fieldset class="ptscanner-type-group"></fieldset>' );
-                const legend = $( '<legend></legend>' ).text( groupName );
+                const label = groupName.charAt( 0 ).toUpperCase() + groupName.slice( 1 );
+                const legend = $( '<legend></legend>' ).text( label );
                 groupWrap.append( legend );
 
                 $.each( types, ( slug, typeData ) => {
