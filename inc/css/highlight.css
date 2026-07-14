@@ -1,0 +1,14 @@
+.ptscanner-highlight-blink {
+    background-color: #fff2a8;
+    outline: 2px solid #d6a800;
+    animation: ptscanner-blink 1s steps(1) 6;
+}
+
+@keyframes ptscanner-blink {
+    0%, 100% {
+        background-color: #fff2a8;
+    }
+    50% {
+        background-color: transparent;
+    }
+}

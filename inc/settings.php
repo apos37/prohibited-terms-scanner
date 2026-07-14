@@ -1,0 +1,324 @@
+<?php
+/**
+ * Plugin settings
+ */
+
+namespace PluginRx\ProhibitedTermsScanner;
+
+if ( ! defined( 'ABSPATH' ) ) exit;
+
+class Settings {
+
+
+    /**
+     * Option keys
+     */
+    private const OPT_TERMS            = 'ptscanner_terms';
+    private const OPT_LOCATION_TYPES   = 'ptscanner_location_types_enabled';
+    private const OPT_POST_TYPES       = 'ptscanner_post_types_enabled';
+    private const OPT_BATCH_SIZE       = 'ptscanner_batch_size';
+    private const OPT_SNIPPET_PADDING  = 'ptscanner_snippet_padding';
+    private const OPT_DEFAULT_CASE     = 'ptscanner_default_case_sensitive';
+    private const OPT_DEFAULT_STRICT   = 'ptscanner_default_strict';
+    private const OPT_WARNING_TERMS    = 'ptscanner_warning_terms';
+    private const OPT_WARNING_ENABLED  = 'ptscanner_warning_enabled';
+    private const OPT_SHORTCODE_ROLES  = 'ptscanner_shortcode_roles';
+
+
+    /**
+     * Nonce action for settings save/AJAX
+     *
+     * @var string
+     */
+    private string $nonce = 'ptscanner_nonce';
+
+
+    /**
+     * The single instance of the class
+     *
+     * @var self|null
+     */
+    private static ?Settings $instance = null;
+
+
+    /**
+     * Get the singleton instance
+     *
+     * @return self
+     */
+    public static function instance() : self {
+        return self::$instance ??= new self();
+    } // End instance()
+
+
+    /**
+     * Constructor
+     */
+    private function __construct() {
+        add_action( 'admin_post_ptscanner_save_settings', [ $this, 'handle_save' ] );
+    } // End __construct()
+
+
+    /**
+     * Get the nonce action name
+     *
+     * @return string
+     */
+    public function nonce_action() : string {
+        return $this->nonce;
+    } // End nonce_action()
+
+
+    /**
+     * Get the saved term list (JSON-decoded)
+     *
+     * @return array Array of [ 'term', 'case_sensitive', 'strict' ]
+     */
+    public function get_terms() : array {
+        $terms = get_option( self::OPT_TERMS, [] );
+
+        return is_array( $terms ) ? $terms : [];
+    } // End get_terms()
+
+
+    /**
+     * Save the term list
+     *
+     * @param array $terms
+     * @return bool
+     */
+    public function save_terms( array $terms ) : bool {
+        $sanitized = $this->sanitize_terms( $terms );
+
+        return update_option( self::OPT_TERMS, $sanitized, false );
+    } // End save_terms()
+
+
+    /**
+     * Get the warning (monitored) term list
+     *
+     * @return array
+     */
+    public function get_warning_terms() : array {
+        $terms = get_option( self::OPT_WARNING_TERMS, [] );
+
+        return is_array( $terms ) ? $terms : [];
+    } // End get_warning_terms()
+
+
+    /**
+     * Save the warning term list
+     *
+     * @param array $terms
+     * @return bool
+     */
+    public function save_warning_terms( array $terms ) : bool {
+        $sanitized = $this->sanitize_terms( $terms );
+
+        return update_option( self::OPT_WARNING_TERMS, $sanitized, false );
+    } // End save_warning_terms()
+
+
+    /**
+     * Sanitize a raw term list array (shared by both term list options)
+     *
+     * @param array $terms
+     * @return array
+     */
+    private function sanitize_terms( array $terms ) : array {
+        $sanitized = [];
+        $seen      = [];
+
+        foreach ( $terms as $term_data ) {
+            if ( ! isset( $term_data[ 'term' ] ) ) {
+                continue;
+            }
+
+            $term = sanitize_text_field( $term_data[ 'term' ] );
+            $term = trim( preg_replace( '/\s+/', ' ', $term ) );
+
+            if ( '' === $term ) {
+                continue;
+            }
+
+            $dedup_key = mb_strtolower( $term );
+
+            if ( isset( $seen[ $dedup_key ] ) ) {
+                continue;
+            }
+
+            $seen[ $dedup_key ] = true;
+
+            $sanitized[] = [
+                'term'           => $term,
+                'case_sensitive' => ! empty( $term_data[ 'case_sensitive' ] ),
+                'strict'         => ! empty( $term_data[ 'strict' ] ),
+            ];
+        }
+
+        return $sanitized;
+    } // End sanitize_terms()
+
+
+    /**
+     * Is warning-on-save/upload enabled
+     *
+     * @return bool
+     */
+    public function is_warning_enabled() : bool {
+        return filter_var( get_option( self::OPT_WARNING_ENABLED, false ), FILTER_VALIDATE_BOOLEAN );
+    } // End is_warning_enabled()
+
+
+    /**
+     * Get enabled location type slugs
+     *
+     * @return array
+     */
+    public function get_enabled_location_types() : array {
+        $saved = get_option( self::OPT_LOCATION_TYPES, null );
+
+        if ( null === $saved ) {
+            $enabled = [];
+
+            foreach ( TypeRegistry::instance()->get_types() as $slug => $type ) {
+                if ( ! empty( $type[ 'default_enabled' ] ) ) {
+                    $enabled[] = $slug;
+                }
+            }
+
+            return $enabled;
+        }
+
+        return is_array( $saved ) ? $saved : [];
+    } // End get_enabled_location_types()
+
+
+    /**
+     * Get enabled post types for scanning
+     *
+     * @return array
+     */
+    public function get_enabled_post_types() : array {
+        $saved = get_option( self::OPT_POST_TYPES, null );
+
+        if ( null === $saved ) {
+            return array_values( get_post_types( [ 'public' => true ], 'names' ) );
+        }
+
+        return is_array( $saved ) ? $saved : [];
+    } // End get_enabled_post_types()
+
+
+    /**
+     * Get batch size
+     *
+     * @return int
+     */
+    public function get_batch_size() : int {
+        $size = absint( get_option( self::OPT_BATCH_SIZE, 20 ) );
+
+        return max( 1, $size );
+    } // End get_batch_size()
+
+
+    /**
+     * Get snippet padding (characters on each side of a match)
+     *
+     * @return int
+     */
+    public function get_snippet_padding() : int {
+        $padding = get_option( self::OPT_SNIPPET_PADDING, '' );
+
+        if ( '' === $padding ) {
+            return 60;
+        }
+
+        return absint( $padding );
+    } // End get_snippet_padding()
+
+
+    /**
+     * Get global default case-sensitivity flag
+     *
+     * @return bool
+     */
+    public function get_default_case_sensitive() : bool {
+        return filter_var( get_option( self::OPT_DEFAULT_CASE, false ), FILTER_VALIDATE_BOOLEAN );
+    } // End get_default_case_sensitive()
+
+
+    /**
+     * Get global default strict-matching flag
+     *
+     * @return bool
+     */
+    public function get_default_strict() : bool {
+        return filter_var( get_option( self::OPT_DEFAULT_STRICT, false ), FILTER_VALIDATE_BOOLEAN );
+    } // End get_default_strict()
+
+
+    /**
+     * Get roles allowed to use the front-end shortcode
+     *
+     * @return array
+     */
+    public function get_shortcode_roles() : array {
+        $roles = get_option( self::OPT_SHORTCODE_ROLES, [ 'administrator' ] );
+
+        return is_array( $roles ) ? $roles : [ 'administrator' ];
+    } // End get_shortcode_roles()
+
+
+    /**
+     * Handle the settings form submission
+     *
+     * @return void
+     */
+    public function handle_save() {
+        check_admin_referer( $this->nonce, $this->nonce . '_field' );
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_die( esc_html__( 'Permission denied.', 'prohibited-terms-scanner' ) );
+        }
+
+        // Location types.
+        $location_types = isset( $_POST[ 'location_types' ] ) ? array_map( 'sanitize_key', wp_unslash( (array) $_POST[ 'location_types' ] ) ) : [];
+        update_option( self::OPT_LOCATION_TYPES, $location_types, false );
+
+        // Post types.
+        $post_types = isset( $_POST[ 'post_types' ] ) ? array_map( 'sanitize_key', wp_unslash( (array) $_POST[ 'post_types' ] ) ) : [];
+        update_option( self::OPT_POST_TYPES, $post_types, false );
+
+        // Batch size.
+        $batch_size = isset( $_POST[ 'batch_size' ] ) ? absint( wp_unslash( $_POST[ 'batch_size' ] ) ) : 20;
+        update_option( self::OPT_BATCH_SIZE, max( 1, $batch_size ), false );
+
+        // Snippet padding.
+        $snippet_padding = isset( $_POST[ 'snippet_padding' ] ) ? absint( wp_unslash( $_POST[ 'snippet_padding' ] ) ) : 60;
+        update_option( self::OPT_SNIPPET_PADDING, max( 0, $snippet_padding ), false );
+
+        // Default case/strict.
+        update_option( self::OPT_DEFAULT_CASE, isset( $_POST[ 'default_case_sensitive' ] ), false );
+        update_option( self::OPT_DEFAULT_STRICT, isset( $_POST[ 'default_strict' ] ), false );
+
+        // Warning toggle + terms.
+        update_option( self::OPT_WARNING_ENABLED, isset( $_POST[ 'warning_enabled' ] ), false );
+
+        if ( isset( $_POST[ 'warning_terms_json' ] ) ) {
+            $decoded = json_decode( sanitize_textarea_field( wp_unslash( $_POST[ 'warning_terms_json' ] ) ), true );
+
+            if ( is_array( $decoded ) ) {
+                $this->save_warning_terms( $decoded );
+            }
+        }
+
+        // Shortcode roles.
+        $shortcode_roles = isset( $_POST[ 'shortcode_roles' ] ) ? array_map( 'sanitize_key', wp_unslash( (array) $_POST[ 'shortcode_roles' ] ) ) : [];
+        update_option( self::OPT_SHORTCODE_ROLES, $shortcode_roles, false );
+
+        wp_safe_redirect( add_query_arg( 'settings-updated', 'true', Bootstrap::settings_url() ) );
+        exit;
+    } // End handle_save()
+
+}
