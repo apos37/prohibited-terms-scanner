@@ -156,6 +156,58 @@ $warning_terms     = $settings->get_warning_terms();
             <input type="hidden" name="warning_terms_json" id="ptscanner-warning-terms-json">
         </div>
 
+        <div class="ptscanner-card">
+            <h2><?php esc_html_e( 'Scheduled Scanning', 'prohibited-terms-scanner' ); ?></h2>
+            <p class="description"><?php esc_html_e( 'Automatically run a full scan on a schedule using the term list and search locations configured above, without needing to visit the Scanner page. This runs as a single background process — very large sites may need a longer PHP execution time limit for cron requests.', 'prohibited-terms-scanner' ); ?></p>
+
+            <label>
+                <input type="checkbox" name="cron_enabled" <?php checked( $settings->is_cron_enabled() ); ?>>
+                <?php esc_html_e( 'Enable scheduled scanning', 'prohibited-terms-scanner' ); ?>
+            </label>
+
+            <p>
+                <label for="ptscanner-cron-frequency"><?php esc_html_e( 'Frequency', 'prohibited-terms-scanner' ); ?></label>
+                <select name="cron_frequency" id="ptscanner-cron-frequency">
+                    <option value="daily" <?php selected( $settings->get_cron_frequency(), 'daily' ); ?>><?php esc_html_e( 'Daily', 'prohibited-terms-scanner' ); ?></option>
+                    <option value="weekly" <?php selected( $settings->get_cron_frequency(), 'weekly' ); ?>><?php esc_html_e( 'Weekly', 'prohibited-terms-scanner' ); ?></option>
+                    <option value="monthly" <?php selected( $settings->get_cron_frequency(), 'monthly' ); ?>><?php esc_html_e( 'Monthly', 'prohibited-terms-scanner' ); ?></option>
+                </select>
+            </p>
+
+            <?php $cron_status = \PluginRx\ProhibitedTermsScanner\Cron::instance()->get_status(); ?>
+            <p class="ptscanner-cron-status">
+                <?php if ( $cron_status[ 'enabled' ] ) : ?>
+                    <strong><?php esc_html_e( 'Status:', 'prohibited-terms-scanner' ); ?></strong>
+                    <?php if ( $cron_status[ 'next_run' ] ) : ?>
+                        <?php
+                        printf(
+                            /* translators: %s: date/time of next scheduled scan */
+                            esc_html__( 'Next scan: %s', 'prohibited-terms-scanner' ),
+                            esc_html( wp_date( 'F j, Y g:i a', $cron_status[ 'next_run' ] ) )
+                        );
+                        ?>
+                    <?php else : ?>
+                        <?php esc_html_e( 'Not currently scheduled — save this page to schedule it.', 'prohibited-terms-scanner' ); ?>
+                    <?php endif; ?>
+                    <br>
+                    <?php if ( '' !== $cron_status[ 'last_run' ] ) : ?>
+                        <?php
+                        printf(
+                            /* translators: 1: date/time of last scan, 2: number of results found */
+                            esc_html__( 'Last scan: %1$s (%2$d result(s) found)', 'prohibited-terms-scanner' ),
+                            esc_html( mysql2date( 'F j, Y g:i a', $cron_status[ 'last_run' ] ) ),
+                            (int) $cron_status[ 'last_result' ]
+                        );
+                        ?>
+                    <?php else : ?>
+                        <?php esc_html_e( 'No scheduled scan has run yet.', 'prohibited-terms-scanner' ); ?>
+                    <?php endif; ?>
+                <?php else : ?>
+                    <em><?php esc_html_e( 'Scheduled scanning is currently disabled.', 'prohibited-terms-scanner' ); ?></em>
+                <?php endif; ?>
+            </p>
+        </div>
+
         <?php submit_button( __( 'Save Settings', 'prohibited-terms-scanner' ) ); ?>
     </form>
 </div>

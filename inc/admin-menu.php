@@ -47,17 +47,14 @@ class AdminMenu {
     } // End __construct()
 
 
-    /**
-     * Register the top-level menu and submenus
-     *
-     * @return void
-     */
     public function register_menu() {
         $textdomain = Bootstrap::textdomain();
+        $count      = DB::instance()->get_flagged_count();
+        $bubble     = $count > 0 ? $this->count_bubble( $count ) : '';
 
         $this->screen_hooks[ 'scanner' ] = add_menu_page(
             Bootstrap::name(),
-            __( 'Prohibited Terms Scanner', 'prohibited-terms-scanner' ),
+            __( 'Prohibited Terms Scanner', 'prohibited-terms-scanner' ) . $bubble,
             'manage_options',
             $textdomain,
             [ $this, 'render_scanner_page' ],
@@ -77,7 +74,7 @@ class AdminMenu {
         $this->screen_hooks[ 'results' ] = add_submenu_page(
             $textdomain,
             __( 'Prohibited Terms Scanner > Results', 'prohibited-terms-scanner' ),
-            __( 'Results', 'prohibited-terms-scanner' ),
+            __( 'Results', 'prohibited-terms-scanner' ) . $bubble,
             'manage_options',
             $textdomain . '_results',
             [ $this, 'render_results_page' ]
@@ -110,6 +107,18 @@ class AdminMenu {
             [ $this, 'render_errors_page' ]
         );
     } // End register_menu()
+
+
+    /**
+     * Build the red count bubble markup, matching WordPress core's own
+     * update-count style used on Plugins/Updates menu items
+     *
+     * @param int $count
+     * @return string
+     */
+    private function count_bubble( int $count ) : string {
+        return ' <span class="update-plugins count-' . absint( $count ) . '"><span class="update-count">' . number_format_i18n( $count ) . '</span></span>';
+    } // End count_bubble()
 
 
     /**

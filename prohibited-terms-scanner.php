@@ -40,6 +40,7 @@ final class Bootstrap {
         'inc/hooks-warning.php',
         'inc/results-page-data.php',
         'inc/front-end.php',
+        'inc/cron.php',
         'inc/integrations/eri-file-library.php',
     ];
 

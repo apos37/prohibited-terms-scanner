@@ -73,29 +73,35 @@ jQuery( function ( $ ) {
 
 
         /**
-         * Gutenberg: hook the publish/update button in the toolbar
-         *
-         * No build step available, so this binds directly to the DOM button
-         * rather than using wp.data subscriptions/filters, which require a
-         * compiled package. This is functional but may need selector updates
-         * if a future WP core release changes the editor's markup.
+         * Gutenberg: intercept the publish/update button at the capture
+         * phase, before React's own click handling can fire — a bubble-phase
+         * jQuery handler runs too late to actually stop the save, since
+         * Gutenberg's own onClick may already have triggered by then.
          */
         bindGutenberg: function () {
-            $( document ).on( 'click', '.editor-post-publish-button, .editor-post-publish-panel__toggle, .editor-post-save-draft', ( event ) => {
-                if ( this.hasWarnedThisSession ) {
+            const self = this;
+
+            document.addEventListener( 'click', function ( event ) {
+                const target = event.target.closest( '.editor-post-publish-button, .editor-post-publish-panel__toggle, .editor-post-save-draft' );
+
+                if ( ! target ) {
+                    return;
+                }
+
+                if ( self.hasWarnedThisSession ) {
                     return;
                 }
 
                 const editorContent = wp.data.select( 'core/editor' ).getEditedPostContent() || '';
                 const editorTitle = wp.data.select( 'core/editor' ).getEditedPostAttribute( 'title' ) || '';
 
-                if ( ! this.confirmIfFlagged( editorTitle + ' ' + editorContent ) ) {
+                if ( ! self.confirmIfFlagged( editorTitle + ' ' + editorContent ) ) {
                     event.stopImmediatePropagation();
                     event.preventDefault();
                 } else {
-                    this.hasWarnedThisSession = true;
+                    self.hasWarnedThisSession = true;
                 }
-            } );
+            }, true );
         }, // End bindGutenberg()
 
 

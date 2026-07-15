@@ -24,6 +24,8 @@ class Settings {
     private const OPT_WARNING_ENABLED  = 'ptscanner_warning_enabled';
     private const OPT_SHORTCODE_ROLES  = 'ptscanner_shortcode_roles';
     private const OPT_PDF_PAGE_LOOKUP = 'ptscanner_pdf_page_lookup';
+    private const OPT_CRON_ENABLED    = 'ptscanner_cron_enabled';
+    private const OPT_CRON_FREQUENCY  = 'ptscanner_cron_frequency';
 
 
     /**
@@ -334,8 +336,39 @@ class Settings {
         $shortcode_roles = isset( $_POST[ 'shortcode_roles' ] ) ? array_map( 'sanitize_key', wp_unslash( (array) $_POST[ 'shortcode_roles' ] ) ) : [];
         update_option( self::OPT_SHORTCODE_ROLES, $shortcode_roles, false );
 
+        // Cron schedule
+        update_option( self::OPT_CRON_ENABLED, isset( $_POST[ 'cron_enabled' ] ), false );
+
+        $cron_frequency = isset( $_POST[ 'cron_frequency' ] ) ? sanitize_key( wp_unslash( $_POST[ 'cron_frequency' ] ) ) : 'daily';
+        update_option( self::OPT_CRON_FREQUENCY, in_array( $cron_frequency, [ 'daily', 'weekly', 'monthly' ], true ) ? $cron_frequency : 'daily', false );
+
+        // Reschedule if settings changed.
+        do_action( 'ptscanner_reschedule_cron' );
+
         wp_send_json_success( [ 'message' => __( 'Settings saved.', 'prohibited-terms-scanner' ) ] );
     } // End handle_save()
+
+
+    /**
+     * Whether scheduled cron scanning is enabled
+     *
+     * @return bool
+     */
+    public function is_cron_enabled() : bool {
+        return filter_var( get_option( self::OPT_CRON_ENABLED, false ), FILTER_VALIDATE_BOOLEAN );
+    } // End is_cron_enabled()
+
+
+    /**
+     * Get the cron scan frequency (daily|weekly)
+     *
+     * @return string
+     */
+    public function get_cron_frequency() : string {
+        $frequency = get_option( self::OPT_CRON_FREQUENCY, 'daily' );
+
+        return in_array( $frequency, [ 'daily', 'weekly', 'monthly' ], true ) ? $frequency : 'daily';
+    } // End get_cron_frequency()
 
 }
 

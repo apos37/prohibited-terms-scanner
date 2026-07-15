@@ -32,6 +32,11 @@ function ptscanner_uninstall_option_keys() : array {
         'ptscanner_shortcode_roles',
         'ptscanner_omits',
         'ptscanner_error_log',
+        'ptscanner_flagged_count',
+        'ptscanner_cron_enabled',
+        'ptscanner_cron_frequency',
+        'ptscanner_cron_last_run',
+        'ptscanner_cron_last_result',
     ];
 } // End ptscanner_uninstall_option_keys()
 
@@ -52,6 +57,8 @@ function ptscanner_uninstall_single_site() {
     foreach ( ptscanner_uninstall_option_keys() as $option_key ) {
         delete_option( $option_key );
     }
+
+     wp_clear_scheduled_hook( 'ptscanner_scheduled_scan' );
 } // End ptscanner_uninstall_single_site()
 
 

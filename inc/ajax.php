@@ -246,6 +246,8 @@ class Ajax {
             wp_send_json_error( [ 'message' => __( 'Permission denied.', 'prohibited-terms-scanner' ) ] );
         }
 
+        DB::instance()->clear_flagged_count_cache();
+
         $summary = DB::instance()->get_flagged_summary();
 
         wp_send_json_success( [ 'summary' => $summary ] );

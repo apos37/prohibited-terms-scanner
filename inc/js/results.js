@@ -39,15 +39,18 @@ jQuery( function ( $ ) {
          */
         bindEvents: function () {
             $( document ).on( 'click', '.ptscanner-mark-ok, .ptscanner-front-mark-ok', ( event ) => {
-                this.setStatus( event.currentTarget, 'ignored' );
+                const isAdmin = $( event.currentTarget ).hasClass( 'ptscanner-mark-ok' );
+                this.setStatus( event.currentTarget, 'ignored', isAdmin );
             } );
 
             $( document ).on( 'click', '.ptscanner-mark-flagged, .ptscanner-front-mark-flagged', ( event ) => {
-                this.setStatus( event.currentTarget, 'flagged' );
+                const isAdmin = $( event.currentTarget ).hasClass( 'ptscanner-mark-flagged' );
+                this.setStatus( event.currentTarget, 'flagged', isAdmin );
             } );
 
             $( document ).on( 'click', '.ptscanner-clear-result, .ptscanner-front-clear-result', ( event ) => {
-                this.clearResult( event.currentTarget );
+                const isAdmin = $( event.currentTarget ).hasClass( 'ptscanner-clear-result' );
+                this.clearResult( event.currentTarget, isAdmin );
             } );
 
             $( document ).on( 'click', '.ptscanner-front-tab', ( event ) => {
@@ -140,6 +143,63 @@ jQuery( function ( $ ) {
                 } );
             } );
         }, // End bindEvents()
+
+
+        /**
+         * Decrement the admin menu's red count bubble by 1, purely visual —
+         * the actual server-side count is already accurate via cache
+         * invalidation; this just avoids needing a full page reload to see
+         * the number change. Only targets the wp-admin menu, never the
+         * front-end shortcode (which has no such badge).
+         */
+        decrementMenuBadge: function () {
+            const badges = document.querySelectorAll( '#adminmenu .update-plugins .update-count' );
+
+            badges.forEach( function ( badge ) {
+                const current = parseInt( badge.textContent, 10 );
+
+                if ( isNaN( current ) ) {
+                    return;
+                }
+
+                const next = Math.max( 0, current - 1 );
+                badge.textContent = next;
+
+                if ( 0 === next ) {
+                    badge.closest( '.update-plugins' ).remove();
+                }
+            } );
+        }, // End decrementMenuBadge()
+
+
+        /**
+         * Increment the admin menu's red count bubble by 1 — used when an
+         * action on the "Marked as OK" tab returns an item to flagged status
+         * (Unignore) or removes an ignored item (Clear), both of which
+         * should visually restore/adjust the flagged count.
+         */
+        incrementMenuBadge: function () {
+            const badges = document.querySelectorAll( '#adminmenu .update-plugins .update-count' );
+
+            if ( badges.length ) {
+                badges.forEach( function ( badge ) {
+                    const current = parseInt( badge.textContent, 10 );
+                    badge.textContent = isNaN( current ) ? 1 : current + 1;
+                } );
+
+                return;
+            }
+
+            // No badge currently exists (count was at 0) — create one on both menu items.
+            const menuItems = document.querySelectorAll( '#adminmenu .toplevel_page_prohibited-terms-scanner > a, #adminmenu a[href*="page=prohibited-terms-scanner_results"]' );
+
+            menuItems.forEach( function ( link ) {
+                const bubble = document.createElement( 'span' );
+                bubble.className = 'update-plugins count-1';
+                bubble.innerHTML = '<span class="update-count">1</span>';
+                link.appendChild( bubble );
+            } );
+        }, // End incrementMenuBadge()
 
 
         /**
@@ -288,8 +348,9 @@ jQuery( function ( $ ) {
          *
          * @param {HTMLElement} button
          * @param {string} status
+         * @param {boolean} isAdminBadgeTarget Whether to decrement the wp-admin menu badge (only for "Mark as OK", not "Unignore")
          */
-        setStatus: function ( button, status ) {
+        setStatus: function ( button, status, isAdminBadgeTarget ) {
             const id = $( button ).data( 'id' );
             const row = $( button ).closest( 'tr' );
 
@@ -302,6 +363,12 @@ jQuery( function ( $ ) {
                 status: status,
             } ).done( ( response ) => {
                 if ( response.success ) {
+                    if ( isAdminBadgeTarget && 'ignored' === status ) {
+                        this.decrementMenuBadge();
+                    } else if ( isAdminBadgeTarget && 'flagged' === status ) {
+                        this.incrementMenuBadge();
+                    }
+
                     row.fadeOut( 200, () => row.remove() );
                 } else {
                     $( button ).prop( 'disabled', false );
@@ -318,14 +385,16 @@ jQuery( function ( $ ) {
          * Clear (delete) a result row after confirmation
          *
          * @param {HTMLElement} button
+         * @param {boolean} isAdminBadgeTarget Whether to adjust the wp-admin menu badge
          */
-        clearResult: function ( button ) {
+        clearResult: function ( button, isAdminBadgeTarget ) {
             if ( ! confirm( ptscanner_data.strings.confirmClear ) ) {
                 return;
             }
 
             const id = $( button ).data( 'id' );
             const row = $( button ).closest( 'tr' );
+            const isIgnoredTab = $( '.subsubsub a.current' ).text().indexOf( 'Marked as OK' ) !== -1;
 
             $( button ).prop( 'disabled', true );
 
@@ -335,6 +404,10 @@ jQuery( function ( $ ) {
                 id: id,
             } ).done( ( response ) => {
                 if ( response.success ) {
+                    if ( isAdminBadgeTarget && ! isIgnoredTab ) {
+                        this.decrementMenuBadge();
+                    }
+
                     row.fadeOut( 200, () => row.remove() );
                 } else {
                     $( button ).prop( 'disabled', false );

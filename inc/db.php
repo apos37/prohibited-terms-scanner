@@ -133,6 +133,8 @@ class DB {
                 'flagged'
             )
         );
+
+        $this->clear_flagged_count_cache();
     } // End wipe_flagged()
 
 
@@ -189,6 +191,8 @@ class DB {
             [ '%s', '%s', '%s', '%s', '%d', '%s', '%s', '%d', '%s', '%s', '%s', '%s' ]
         );
 
+        // $this->clear_flagged_count_cache();
+
         return $inserted ? $wpdb->insert_id : false;
     } // End insert()
 
@@ -216,6 +220,8 @@ class DB {
             [ '%d' ]
         );
 
+        $this->clear_flagged_count_cache();
+
         return false !== $updated;
     } // End set_status()
 
@@ -236,6 +242,8 @@ class DB {
             [ 'id' => absint( $id ) ],
             [ '%d' ]
         );
+
+        $this->clear_flagged_count_cache();
 
         return false !== $deleted && $deleted > 0;
     } // End delete()
@@ -258,6 +266,8 @@ class DB {
                 $status
             )
         );
+
+        $this->clear_flagged_count_cache();
 
         return false !== $deleted ? (int) $deleted : 0;
     } // End delete_all_by_status()
@@ -283,5 +293,46 @@ class DB {
 
         return $rows ? $rows : [];
     } // End get_flagged_summary()
+
+
+    /**
+     * Get the total count of flagged (unresolved) results, cached until
+     * explicitly invalidated by a scan, clear, or status change
+     *
+     * @return int
+     */
+    public function get_flagged_count() : int {
+        $cached = get_option( 'ptscanner_flagged_count', false );
+
+        if ( false !== $cached ) {
+            return (int) $cached;
+        }
+
+        global $wpdb;
+
+        $table_name = $this->table();
+
+        $count = (int) $wpdb->get_var(
+            $wpdb->prepare(
+                "SELECT COUNT(*) FROM {$table_name} WHERE status = %s",
+                'flagged'
+            )
+        );
+
+        update_option( 'ptscanner_flagged_count', $count, false );
+
+        return $count;
+    } // End get_flagged_count()
+
+
+    /**
+     * Clear the cached flagged count, called whenever results change, so
+     * the next read recounts immediately rather than waiting on an expiry
+     *
+     * @return void
+     */
+    public function clear_flagged_count_cache() {
+        delete_option( 'ptscanner_flagged_count' );
+    } // End clear_flagged_count_cache()
 
 }
