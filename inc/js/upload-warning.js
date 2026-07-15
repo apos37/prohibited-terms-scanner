@@ -143,20 +143,34 @@ jQuery( function ( $ ) {
                     return;
                 }
 
-                let parsed;
+                const response = $( xhr.responseText );
+                const editLink = response.find( '.edit-attachment' ).attr( 'href' );
 
-                try {
-                    parsed = JSON.parse( xhr.responseText );
-                } catch ( e ) {
+                if ( ! editLink ) {
                     return;
                 }
 
-                const terms = parsed.data && parsed.data.ptscannerFlaggedTerms;
+                const matches = editLink.match( /post=(\d+)/ );
 
-                if ( terms && terms.length ) {
-                    const filename = ( parsed.data && parsed.data.filename ) || 'the uploaded file';
-                    alert( 'This file\'s content contains a flagged term: ' + terms.join( ', ' ) + ' (' + filename + ')' );
+                if ( ! matches ) {
+                    return;
                 }
+
+                const attachmentId = matches[ 1 ];
+
+                wp.media.attachment( attachmentId ).fetch().done( function () {
+                    const attachment = wp.media.attachment( attachmentId );
+                    const terms = attachment.get( 'ptscannerFlaggedTerms' );
+
+                    // console.log( 'Attachment:', attachment.attributes );
+                    // console.log( 'Flagged terms:', terms );
+
+                    if ( terms && terms.length ) {
+                        alert(
+                            'This file contains prohibited terms: ' + terms.join( ', ' )
+                        );
+                    }
+                } );
             } );
         }, // End hookUploadCompletion()
 

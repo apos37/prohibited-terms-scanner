@@ -18,7 +18,7 @@ $ignored_url = add_query_arg( 'status', 'ignored', $base_url );
 ?>
 <div class="wrap ptscanner-wrap ptscanner-results-page">
     <header class="ptscanner-header">
-        <h1><?php esc_html_e( 'Results', 'prohibited-terms-scanner' ); ?></h1>
+        <h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
         <p>
             <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $textdomain ) ); ?>">
                 &larr; <?php esc_html_e( 'Back to Scanner', 'prohibited-terms-scanner' ); ?>

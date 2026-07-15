@@ -36,8 +36,8 @@ This plugin does not automatically remove or redact anything it finds. It is a d
 == Installation ==
 1. Upload the plugin files to the `/wp-content/plugins/prohibited-terms-scanner/` directory, or install through the Plugins screen directly.
 2. Activate the plugin through the 'Plugins' menu in WordPress.
-3. Go to **Term Scanner** in the admin menu to add your terms and run your first scan.
-4. Optionally visit **Term Scanner > Settings** to adjust search locations, post types, batch size, and the save/upload warning.
+3. Go to **Prohibited Terms** in the admin menu to add your terms and run your first scan.
+4. Optionally visit **Prohibited Terms > Settings** to adjust search locations, post types, batch size, and the save/upload warning.
 
 == Frequently Asked Questions ==
 

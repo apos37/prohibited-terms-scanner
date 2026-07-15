@@ -57,7 +57,7 @@ class AdminMenu {
 
         $this->screen_hooks[ 'scanner' ] = add_menu_page(
             Bootstrap::name(),
-            __( 'Term Scanner', 'prohibited-terms-scanner' ),
+            __( 'Prohibited Terms Scanner', 'prohibited-terms-scanner' ),
             'manage_options',
             $textdomain,
             [ $this, 'render_scanner_page' ],
@@ -67,7 +67,7 @@ class AdminMenu {
 
         add_submenu_page(
             $textdomain,
-            __( 'Scanner', 'prohibited-terms-scanner' ),
+            __( 'Prohibited Terms Scanner', 'prohibited-terms-scanner' ),
             __( 'Scanner', 'prohibited-terms-scanner' ),
             'manage_options',
             $textdomain,
@@ -76,7 +76,7 @@ class AdminMenu {
 
         $this->screen_hooks[ 'results' ] = add_submenu_page(
             $textdomain,
-            __( 'Results', 'prohibited-terms-scanner' ),
+            __( 'Prohibited Terms Scanner > Results', 'prohibited-terms-scanner' ),
             __( 'Results', 'prohibited-terms-scanner' ),
             'manage_options',
             $textdomain . '_results',
@@ -85,7 +85,7 @@ class AdminMenu {
 
         $this->screen_hooks[ 'settings' ] = add_submenu_page(
             $textdomain,
-            __( 'Settings', 'prohibited-terms-scanner' ),
+            __( 'Prohibited Terms Scanner > Settings', 'prohibited-terms-scanner' ),
             __( 'Settings', 'prohibited-terms-scanner' ),
             'manage_options',
             $textdomain . '_settings',
@@ -94,7 +94,7 @@ class AdminMenu {
 
         $this->screen_hooks[ 'import_export' ] = add_submenu_page(
             $textdomain,
-            __( 'Import/Export', 'prohibited-terms-scanner' ),
+            __( 'Prohibited Terms Scanner > Import/Export', 'prohibited-terms-scanner' ),
             __( 'Import/Export', 'prohibited-terms-scanner' ),
             'manage_options',
             $textdomain . '_import_export',
@@ -103,7 +103,7 @@ class AdminMenu {
 
         $this->screen_hooks[ 'errors' ] = add_submenu_page(
             $textdomain,
-            __( 'Errors', 'prohibited-terms-scanner' ),
+            __( 'Prohibited Terms Scanner > Errors', 'prohibited-terms-scanner' ),
             __( 'Errors', 'prohibited-terms-scanner' ),
             'manage_options',
             $textdomain . '_errors',

@@ -248,7 +248,8 @@ class HooksWarning {
             return;
         }
 
-        $matched_terms = array_unique( wp_list_pluck( $matches, 'term' ) );
+        // $matched_terms = array_unique( wp_list_pluck( $matches, 'term' ) );
+        $matched_terms = array_values( array_unique( wp_list_pluck( $matches, 'term' ) ) );
 
         update_post_meta( $attachment_id, '_ptscanner_content_warning', $matched_terms );
     } // End check_uploaded_content()
