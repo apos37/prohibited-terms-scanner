@@ -39,7 +39,8 @@ final class Bootstrap {
         'inc/ajax.php',
         'inc/hooks-warning.php',
         'inc/results-page-data.php',
-        'inc/front-end.php'
+        'inc/front-end.php',
+        'inc/integrations/eri-file-library.php',
     ];
 
 

@@ -479,7 +479,8 @@ class Scanner {
 
             if ( 'application/pdf' === $mime_type ) {
                 if ( Settings::instance()->get_pdf_page_lookup() ) {
-                    $rows = array_merge( $rows, $this->scan_pdf_by_page( $attachment_id, $file, $terms ) );
+                    $url  = wp_get_attachment_url( $attachment_id );
+                    $rows = array_merge( $rows, $this->scan_pdf_by_page( $file, $terms, 'file_content', 'attachment', $attachment_id, $url ) );
                     continue;
                 }
 
@@ -504,12 +505,15 @@ class Scanner {
     /**
      * Scan a PDF page-by-page so matches can record which page they were found on
      *
-     * @param int    $attachment_id
      * @param string $file_path
      * @param array  $terms
+     * @param string $location_type
+     * @param string $source_type
+     * @param int    $source_id
+     * @param string $url
      * @return array
      */
-    private function scan_pdf_by_page( $attachment_id, $file_path, $terms ) : array {
+    public function scan_pdf_by_page( $file_path, $terms, $location_type, $source_type, $source_id, $url ) : array {
         $rows = [];
 
         if ( ! class_exists( '\PTScannerVendor\Smalot\PdfParser\Parser' ) ) {
@@ -528,8 +532,6 @@ class Scanner {
             return $rows;
         }
 
-        $url = wp_get_attachment_url( $attachment_id );
-
         foreach ( $pages as $index => $page ) {
             try {
                 $text = $page->getText();
@@ -540,9 +542,16 @@ class Scanner {
             $matches = $this->match_terms( $text, $terms );
 
             foreach ( $matches as $match ) {
-                $row = $this->build_row( $match, 'file_content', 'attachment', $attachment_id, $url );
-                $row[ 'file_page' ] = $index + 1;
-                $row[ 'match_hash' ] = $this->build_match_hash( $match[ 'term' ], 'file_content', $attachment_id . '-p' . ( $index + 1 ), $match[ 'snippet' ] );
+                $row = [
+                    'term'            => $match[ 'term' ],
+                    'location_type'   => $location_type,
+                    'source_type'     => $source_type,
+                    'source_id'       => $source_id,
+                    'source_url'      => $url,
+                    'context_snippet' => $match[ 'snippet' ],
+                    'file_page'       => $index + 1,
+                    'match_hash'      => $this->build_match_hash( $match[ 'term' ], $location_type, $source_id . '-p' . ( $index + 1 ), $match[ 'snippet' ] ),
+                ];
                 $rows[] = $row;
             }
         }
@@ -690,7 +699,7 @@ class Scanner {
      * @param string $file_path
      * @return string
      */
-    private function extract_docx_text( $file_path ) : string {
+    public function extract_docx_text( $file_path ) : string {
         if ( ! class_exists( '\ZipArchive' ) ) {
             ErrorLog::instance()->log( 'file_content', 'ZipArchive extension not available; cannot extract .docx text.' );
 
@@ -733,7 +742,7 @@ class Scanner {
      * @param string $file_path
      * @return string
      */
-    private function extract_pdf_text( $file_path ) : string {
+    public function extract_pdf_text( $file_path ) : string {
         if ( ! class_exists( '\PTScannerVendor\Smalot\PdfParser\Parser' ) ) {
             ErrorLog::instance()->log( 'file_content', 'PDF parser library not available (vendor/autoload.php missing or not loaded).' );
 
@@ -756,5 +765,31 @@ class Scanner {
 
         return (string) $text;
     } // End extract_pdf_text()
+
+
+    /**
+     * Extract text content from a file path based on its extension, reusing
+     * the same extraction logic used for Media Library file content scanning
+     *
+     * @param string $file_path
+     * @return string
+     */
+    public function extract_file_content_for_path( $file_path ) : string {
+        $ext = strtolower( pathinfo( $file_path, PATHINFO_EXTENSION ) );
+
+        if ( 'pdf' === $ext ) {
+            return $this->extract_pdf_text( $file_path );
+        }
+
+        if ( 'docx' === $ext ) {
+            return $this->extract_docx_text( $file_path );
+        }
+
+        if ( in_array( $ext, [ 'txt', 'csv' ], true ) ) {
+            return (string) file_get_contents( $file_path );
+        }
+
+        return '';
+    } // End extract_file_content_for_path()
 
 }

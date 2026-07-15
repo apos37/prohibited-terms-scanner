@@ -105,6 +105,15 @@ class ResultsPageData {
                     $row[ 'location_label' ] = sprintf( __( '%1$s (%2$s)', 'prohibited-terms-scanner' ), $row[ 'location_label' ], $ext );
                 }
             }
+        } elseif ( 'eri_file_content' === $row[ 'location_type' ] && ! empty( $row[ 'source_id' ] ) && class_exists( '\Apos37\EriFileLibrary\PostType' ) ) {
+            $eri      = new \Apos37\EriFileLibrary\PostType();
+            $filename = get_post_meta( $row[ 'source_id' ], $eri->meta_key_url, true );
+            $ext      = $filename ? strtoupper( pathinfo( $filename, PATHINFO_EXTENSION ) ) : '';
+
+            if ( '' !== $ext ) {
+                /* translators: %1$s: location label, %2$s: file type/extension */
+                $row[ 'location_label' ] = sprintf( __( '%1$s (%2$s)', 'prohibited-terms-scanner' ), $row[ 'location_label' ], $ext );
+            }
         }
         
         $row[ 'context_highlighted' ] = $this->highlight_term( $row[ 'context_snippet' ], $row[ 'term' ] );
