@@ -43,6 +43,14 @@ $warning_terms     = $settings->get_warning_terms();
                     <?php endforeach; ?>
                 </fieldset>
             <?php endforeach; ?>
+
+            <?php if ( ! class_exists( '\ZipArchive' ) ) : ?>
+                <div class="notice notice-warning inline ptscanner-ziparchive-notice">
+                    <p>
+                        <?php esc_html_e( 'Your server does not have the PHP ZipArchive extension enabled, so .docx files cannot be scanned for content even if File Content is enabled below. Contact your hosting provider to enable this extension.', 'prohibited-terms-scanner' ); ?>
+                    </p>
+                </div>
+            <?php endif; ?>
         </div>
 
         <div class="ptscanner-card">

@@ -684,12 +684,16 @@ class Scanner {
      * @return string
      */
     private function extract_pdf_text( $file_path ) : string {
+        ErrorLog::instance()->log( 'file_content_debug', 'Starting PDF text extraction: ' . $file_path );
+
         $raw = file_get_contents( $file_path );
 
         if ( false === $raw ) {
             ErrorLog::instance()->log( 'file_content', 'Could not read PDF file: ' . $file_path );
 
             return '';
+        } else {
+            ErrorLog::instance()->log( 'file_content_debug', 'Read PDF file (' . strlen( $raw ) . ' bytes): ' . $file_path );
         }
 
         $text_parts = [];
@@ -700,6 +704,8 @@ class Scanner {
             ErrorLog::instance()->log( 'file_content', 'No stream objects found in PDF: ' . $file_path );
 
             return '';
+        } else {
+            ErrorLog::instance()->log( 'file_content_debug', 'Found ' . count( $stream_matches[ 1 ] ) . ' stream objects in PDF: ' . $file_path );
         }
 
         foreach ( $stream_matches[ 1 ] as $stream ) {
@@ -722,6 +728,8 @@ class Scanner {
 
         if ( empty( $text_parts ) ) {
             ErrorLog::instance()->log( 'file_content', 'No extractable Tj/TJ text operators found in PDF: ' . $file_path );
+        } else {
+            ErrorLog::instance()->log( 'file_content_debug', 'Extracted PDF text (first 300 chars): ' . substr( implode( ' ', $text_parts ), 0, 300 ) );
         }
 
         return implode( ' ', $text_parts );

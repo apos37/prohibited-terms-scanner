@@ -205,6 +205,11 @@
     padding-left: 20px;
 }
 
+.ptscanner-ziparchive-notice {
+    margin: 12px 0;
+    padding: 10px 15px;
+}
+
 .ptscanner-summary table,
 .ptscanner-results-table {
     margin-top: 10px;

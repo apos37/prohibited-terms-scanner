@@ -18,7 +18,7 @@ Paste a list of terms or phrases, choose where to search, and run a scan. Result
 
 **Features:**
 * Search post titles, main content, excerpts, comments, taxonomy term names and slugs, media filenames, and media alt text
-* Optional file content scanning for plain text files (opt-in, off by default)
+* Optional file content scanning for plain text, CSV, Word (.docx), and PDF files (opt-in, off by default)
 * Case-sensitive and whole-word (strict) matching, set globally or per term
 * Batched AJAX scanning with a live progress bar, so large sites don't time out
 * Cancel a scan in progress; results found so far are kept
@@ -47,8 +47,15 @@ No. It only finds and reports flagged terms so you can review and fix them yours
 = Will scanning slow down my site? =
 Scans run in batches over AJAX and only while you're actively on the Scanner page, not in the background or on every page load. You can adjust the batch size in Settings if scans are timing out or running too slowly on a large site.
 
-= Can I search inside PDFs or Word documents? =
-Not out of the box, since this would require third-party libraries that aren't permitted for plugins distributed on WordPress.org. File content scanning currently supports plain text files only. Developers can extend supported file types using the `ptscanner_file_content_mimes` filter if they add their own text-extraction logic.
+= What file types are supported for file content scanning? =
+File content scanning (optional, off by default) currently supports:
+
+* Plain text files (.txt)
+* CSV files (.csv)
+* Word documents (.docx)
+* PDF files (.pdf)
+
+Legacy Word documents (.doc, the pre-2007 binary format) are not supported out of the box, since reliably reading that format requires a separate third-party library this plugin doesn't bundle. Developers can add support for .doc or any other file type using the `ptscanner_file_content_mimes` filter along with their own extraction logic.
 
 = What happens if I run a full scan again? =
 A full scan clears previously flagged (unresolved) results before running, so your results always reflect the current state of your site. Results you've marked as OK are kept and are not re-flagged unless the same term is found in a new location.

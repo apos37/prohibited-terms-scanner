@@ -13,6 +13,14 @@ if ( ! defined( 'ABSPATH' ) ) exit;
         <p class="description"><?php esc_html_e( 'Paste a list of terms or phrases to search for across your site.', 'prohibited-terms-scanner' ); ?></p>
     </header>
 
+    <?php if ( ! class_exists( '\ZipArchive' ) ) : ?>
+        <div class="notice notice-warning inline ptscanner-ziparchive-notice">
+            <p>
+                <?php esc_html_e( 'Your server does not have the PHP ZipArchive extension enabled. This means Word (.docx) files cannot be scanned for content — filenames are unaffected. Contact your hosting provider to enable this extension if you need .docx content scanning.', 'prohibited-terms-scanner' ); ?>
+            </p>
+        </div>
+    <?php endif; ?>
+
     <div class="ptscanner-card">
         <details class="ptscanner-terms-accordion" open>
             <summary><?php esc_html_e( 'Terms & Options', 'prohibited-terms-scanner' ); ?></summary>
