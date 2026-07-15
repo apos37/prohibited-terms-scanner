@@ -138,11 +138,25 @@ jQuery( function ( $ ) {
          * unreliable on this page.
          */
         hookUploadCompletion: function () {
-            console.log( 'ajaxComplete listener attached' );
-
             $( document ).ajaxComplete( function ( event, xhr, settings ) {
-                console.log( 'AJAX completed. URL:', settings.url );
-                console.log( 'Response text:', xhr.responseText );
+                if ( ! settings.url || -1 === settings.url.indexOf( 'async-upload.php' ) ) {
+                    return;
+                }
+
+                let parsed;
+
+                try {
+                    parsed = JSON.parse( xhr.responseText );
+                } catch ( e ) {
+                    return;
+                }
+
+                const terms = parsed.data && parsed.data.ptscannerFlaggedTerms;
+
+                if ( terms && terms.length ) {
+                    const filename = ( parsed.data && parsed.data.filename ) || 'the uploaded file';
+                    alert( 'This file\'s content contains a flagged term: ' + terms.join( ', ' ) + ' (' + filename + ')' );
+                }
             } );
         }, // End hookUploadCompletion()
 
