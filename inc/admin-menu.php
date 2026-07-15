@@ -184,6 +184,7 @@ class AdminMenu {
                 'noResults'          => __( 'No results found.', 'prohibited-terms-scanner' ),
                 'selectFile'         => __( 'Please select a file first.', 'prohibited-terms-scanner' ),
                 'confirmImport'      => __( 'This will overwrite your current terms and settings. Continue?', 'prohibited-terms-scanner' ),
+                'confirmClearAllTerms' => __( 'Clear all terms from the list? This cannot be undone.', 'prohibited-terms-scanner' ),
             ],
         ] );
 

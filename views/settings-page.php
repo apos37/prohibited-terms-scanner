@@ -149,6 +149,9 @@ $warning_terms     = $settings->get_warning_terms();
                 <button type="button" class="button" id="ptscanner-add-warning-terms">
                     <?php esc_html_e( 'Add Terms', 'prohibited-terms-scanner' ); ?>
                 </button>
+                <button type="button" class="button" id="ptscanner-clear-all-warning-terms">
+                    <?php esc_html_e( 'Clear All Terms', 'prohibited-terms-scanner' ); ?>
+                </button>
             </div>
 
             <div class="ptscanner-terms-cards" id="ptscanner-warning-terms-cards"></div>

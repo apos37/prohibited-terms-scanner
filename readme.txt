@@ -30,6 +30,7 @@ Paste a list of terms or phrases, choose where to search, and run a scan. Result
 * Import/export your term list and settings as JSON to move between sites
 * Batch size and context snippet length are both configurable for performance tuning
 * Extendable: developers can register additional scan locations for their own integrations
+* Optional scheduled (daily/weekly/monthly) automatic scanning using your saved terms and search locations, with a status readout showing next/last run
 
 This plugin does not automatically remove or redact anything it finds. It is a discovery tool to help you locate and manually review content that may need attention.
 
@@ -66,6 +67,9 @@ Yes, using the `[prohibited_terms_scanner]` shortcode on any page. Access is res
 = Does the save/upload warning stop me from saving or uploading? =
 No. It warns you that a monitored term was found so you can double check before continuing, but it will not block you from proceeding.
 
+= Can scans run automatically on a schedule? =
+Yes. In Settings, you can enable daily, weekly, or monthly scheduled scanning using your saved term list and search locations — no need to visit the Scanner page. This runs as a single background process via WordPress's cron system, so very large sites may want to increase their PHP execution time limit for cron requests, or test this on a staging site first. The Settings page shows the next scheduled run and the result of the last run.
+
 == Screenshots ==
 1. Add terms and choose search locations on the Scanner page
 2. Live progress bar while a scan runs
@@ -73,6 +77,12 @@ No. It warns you that a monitored term was found so you can double check before 
 4. Settings page with search locations, post types, and performance options
 
 == Changelog ==
+
+= 1.1.0 =
+* Added file content scanning for PDF and Word (.docx) documents
+* Added ERI File Library integration (filenames, descriptions, and file content)
+* Added a results counter badge on the admin menu
+* Added optional scheduled (cron) scanning with status display
 
 = 1.0.0 =
 * Initial release

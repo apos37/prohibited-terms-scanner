@@ -52,6 +52,20 @@ jQuery( function ( $ ) {
             $( document.getElementById( 'ptscanner-warning-terms-json' ) ).closest( 'form' ).on( 'submit', () => {
                 this.syncHiddenField();
             } );
+
+            $( document ).on( 'click', '#ptscanner-clear-all-warning-terms', () => {
+                if ( ! this.terms.length ) {
+                    return;
+                }
+
+                if ( ! confirm( 'Clear all terms from the list? This cannot be undone.' ) ) {
+                    return;
+                }
+
+                this.terms = [];
+                this.renderCards();
+                this.syncHiddenField();
+            } );
         }, // End bindEvents()
 
 

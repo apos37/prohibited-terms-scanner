@@ -128,6 +128,7 @@ class FrontEnd {
                 'strictLabel'        => __( 'Strict', 'prohibited-terms-scanner' ),
                 'loading'            => __( 'Loading…', 'prohibited-terms-scanner' ),
                 'noResults'          => __( 'No results found.', 'prohibited-terms-scanner' ),
+                'confirmClearAllTerms' => __( 'Clear all terms from the list? This cannot be undone.', 'prohibited-terms-scanner' ),
             ],
         ] );
 

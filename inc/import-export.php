@@ -81,11 +81,13 @@ class ImportExport {
             'enabled_location_types' => $settings->get_enabled_location_types(),
             'enabled_post_types'     => $settings->get_enabled_post_types(),
             'batch_size'             => $settings->get_batch_size(),
-            'pdf_page_lookup'        => $settings->get_pdf_page_lookup(),
             'snippet_padding'        => $settings->get_snippet_padding(),
             'default_case_sensitive' => $settings->get_default_case_sensitive(),
             'default_strict'         => $settings->get_default_strict(),
             'shortcode_roles'        => $settings->get_shortcode_roles(),
+            'pdf_page_lookup'        => $settings->get_pdf_page_lookup(),
+            'cron_enabled'           => $settings->is_cron_enabled(),
+            'cron_frequency'         => $settings->get_cron_frequency(),
         ];
 
         wp_send_json_success( [
@@ -177,6 +179,18 @@ class ImportExport {
         if ( isset( $data[ 'shortcode_roles' ] ) && is_array( $data[ 'shortcode_roles' ] ) ) {
             update_option( 'ptscanner_shortcode_roles', array_map( 'sanitize_key', $data[ 'shortcode_roles' ] ), false );
         }
+
+        if ( isset( $data[ 'cron_enabled' ] ) ) {
+            update_option( 'ptscanner_cron_enabled', (bool) $data[ 'cron_enabled' ], false );
+        }
+
+        if ( isset( $data[ 'cron_frequency' ] ) ) {
+            $frequency = sanitize_key( $data[ 'cron_frequency' ] );
+            update_option( 'ptscanner_cron_frequency', in_array( $frequency, [ 'daily', 'weekly', 'monthly' ], true ) ? $frequency : 'daily', false );
+        }
+
+        // Reschedule cron in case enabled/frequency changed via import.
+        do_action( 'ptscanner_reschedule_cron' );
 
         wp_send_json_success( [ 'message' => __( 'Settings imported successfully!', 'prohibited-terms-scanner' ) ] );
     } // End handle_import()

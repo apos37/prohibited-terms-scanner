@@ -60,6 +60,19 @@ jQuery( function ( $ ) {
             $( document ).on( 'click', '.ptscanner-pill-edit', () => {
                 this.expandAccordion();
             } );
+
+            $( document ).on( 'click', '#ptscanner-clear-all-terms', () => {
+                if ( ! this.terms.length ) {
+                    return;
+                }
+
+                if ( ! confirm( ptscanner_data.strings.confirmClearAllTerms || 'Clear all terms from the list? This cannot be undone.' ) ) {
+                    return;
+                }
+
+                this.terms = [];
+                this.renderCards();
+            } );
         }, // End bindEvents()
 
 

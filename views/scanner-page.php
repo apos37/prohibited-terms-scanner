@@ -31,6 +31,9 @@ if ( ! defined( 'ABSPATH' ) ) exit;
                 <button type="button" class="button" id="ptscanner-add-terms">
                     <?php esc_html_e( 'Add Terms', 'prohibited-terms-scanner' ); ?>
                 </button>
+                <button type="button" class="button" id="ptscanner-clear-all-terms">
+                    <?php esc_html_e( 'Clear All Terms', 'prohibited-terms-scanner' ); ?>
+                </button>
                 <p class="description ptscanner-strict-note">
                     <?php esc_html_e( '"Case Sensitive" matches exact letter casing. "Strict" matches whole words only (e.g. "class" will not match "classic").', 'prohibited-terms-scanner' ); ?>
                 </p>

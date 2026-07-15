@@ -9,9 +9,11 @@
  * Requires PHP:        7.4
  * Author:              PluginRx
  * Author URI:          https://pluginrx.com/
+ * Discord URI:         https://discord.gg/3HnzNEJVnR
  * Text Domain:         prohibited-terms-scanner
  * License:             GPLv2 or later
  * License URI:         http://www.gnu.org/licenses/gpl-2.0.txt
+ * Created on:          July 15, 2026
  */
 
 namespace PluginRx\ProhibitedTermsScanner;
