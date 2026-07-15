@@ -79,6 +79,16 @@ $warning_terms     = $settings->get_warning_terms();
                     </td>
                 </tr>
                 <tr>
+                    <th><?php esc_html_e( 'PDF Page Lookup', 'prohibited-terms-scanner' ); ?></th>
+                    <td>
+                        <label>
+                            <input type="checkbox" name="pdf_page_lookup" <?php checked( $settings->get_pdf_page_lookup() ); ?>>
+                            <?php esc_html_e( 'Record which page of a PDF each match is found on', 'prohibited-terms-scanner' ); ?>
+                        </label>
+                        <p class="description"><?php esc_html_e( 'When enabled, PDFs are scanned page-by-page so results show the exact page number. This is slower, especially for large PDFs. When disabled, PDF content is still scanned, but without page numbers.', 'prohibited-terms-scanner' ); ?></p>
+                    </td>
+                </tr>
+                <tr>
                     <th><label for="ptscanner-snippet-padding"><?php esc_html_e( 'Snippet Padding', 'prohibited-terms-scanner' ); ?></label></th>
                     <td>
                         <input type="number" id="ptscanner-snippet-padding" name="snippet_padding" min="0" max="500"

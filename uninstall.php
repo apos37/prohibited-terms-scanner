@@ -25,6 +25,7 @@ function ptscanner_uninstall_option_keys() : array {
         'ptscanner_location_types_enabled',
         'ptscanner_post_types_enabled',
         'ptscanner_batch_size',
+        'ptscanner_pdf_page_lookup',
         'ptscanner_snippet_padding',
         'ptscanner_default_case_sensitive',
         'ptscanner_default_strict',

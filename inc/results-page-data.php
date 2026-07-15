@@ -92,6 +92,21 @@ class ResultsPageData {
         $type = TypeRegistry::instance()->get_type( $row[ 'location_type' ] );
 
         $row[ 'location_label' ] = $type[ 'label' ] ?? ucwords( str_replace( '_', ' ', $row[ 'location_type' ] ) );
+
+        // For file content results, append the file type, e.g. "File Content (PDF)".
+        if ( 'file_content' === $row[ 'location_type' ] && ! empty( $row[ 'source_id' ] ) ) {
+            $file = get_attached_file( $row[ 'source_id' ] );
+
+            if ( $file ) {
+                $ext = strtoupper( pathinfo( $file, PATHINFO_EXTENSION ) );
+
+                if ( '' !== $ext ) {
+                    /* translators: %1$s: location label, %2$s: file type/extension */
+                    $row[ 'location_label' ] = sprintf( __( '%1$s (%2$s)', 'prohibited-terms-scanner' ), $row[ 'location_label' ], $ext );
+                }
+            }
+        }
+        
         $row[ 'context_highlighted' ] = $this->highlight_term( $row[ 'context_snippet' ], $row[ 'term' ] );
 
         // Taxonomy term links point to admin-only management screens for some

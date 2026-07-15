@@ -478,6 +478,11 @@ class Scanner {
             $mime_type = get_post_mime_type( $attachment_id );
 
             if ( 'application/pdf' === $mime_type ) {
+                if ( Settings::instance()->get_pdf_page_lookup() ) {
+                    $rows = array_merge( $rows, $this->scan_pdf_by_page( $attachment_id, $file, $terms ) );
+                    continue;
+                }
+
                 $content = $this->extract_pdf_text( $file );
             } elseif ( 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' === $mime_type ) {
                 $content = $this->extract_docx_text( $file );
@@ -494,6 +499,56 @@ class Scanner {
 
         return [ 'rows' => $rows, 'done' => count( $attachment_ids ) < $limit ];
     } // End scan_file_contents()
+
+
+    /**
+     * Scan a PDF page-by-page so matches can record which page they were found on
+     *
+     * @param int    $attachment_id
+     * @param string $file_path
+     * @param array  $terms
+     * @return array
+     */
+    private function scan_pdf_by_page( $attachment_id, $file_path, $terms ) : array {
+        $rows = [];
+
+        if ( ! class_exists( '\PTScannerVendor\Smalot\PdfParser\Parser' ) ) {
+            ErrorLog::instance()->log( 'file_content', 'PDF parser library not available.' );
+
+            return $rows;
+        }
+
+        try {
+            $parser = new \PTScannerVendor\Smalot\PdfParser\Parser();
+            $pdf    = $parser->parseFile( $file_path );
+            $pages  = $pdf->getPages();
+        } catch ( \Throwable $e ) {
+            ErrorLog::instance()->log( 'file_content', 'PDF parsing failed for ' . $file_path . ': ' . $e->getMessage() );
+
+            return $rows;
+        }
+
+        $url = wp_get_attachment_url( $attachment_id );
+
+        foreach ( $pages as $index => $page ) {
+            try {
+                $text = $page->getText();
+            } catch ( \Throwable $e ) {
+                continue;
+            }
+
+            $matches = $this->match_terms( $text, $terms );
+
+            foreach ( $matches as $match ) {
+                $row = $this->build_row( $match, 'file_content', 'attachment', $attachment_id, $url );
+                $row[ 'file_page' ] = $index + 1;
+                $row[ 'match_hash' ] = $this->build_match_hash( $match[ 'term' ], 'file_content', $attachment_id . '-p' . ( $index + 1 ), $match[ 'snippet' ] );
+                $rows[] = $row;
+            }
+        }
+
+        return $rows;
+    } // End scan_pdf_by_page()
 
 
     /**
@@ -672,67 +727,34 @@ class Scanner {
 
 
     /**
-     * Extract text from a .pdf file using only PHP's built-in zlib support
-     *
-     * Best-effort only: handles common FlateDecode-compressed text streams.
-     * Will not correctly handle encrypted PDFs, scanned/image-only PDFs, or
-     * PDFs using non-standard font encodings. For full-fidelity PDF parsing,
-     * a dedicated library is required; this covers the common case without
-     * one, per the site owner's choice to avoid bundled dependencies.
+     * Extract text from a .pdf file using the bundled, namespace-scoped
+     * smalot/pdfparser library
      *
      * @param string $file_path
      * @return string
      */
     private function extract_pdf_text( $file_path ) : string {
-        ErrorLog::instance()->log( 'file_content_debug', 'Starting PDF text extraction: ' . $file_path );
-
-        $raw = file_get_contents( $file_path );
-
-        if ( false === $raw ) {
-            ErrorLog::instance()->log( 'file_content', 'Could not read PDF file: ' . $file_path );
+        if ( ! class_exists( '\PTScannerVendor\Smalot\PdfParser\Parser' ) ) {
+            ErrorLog::instance()->log( 'file_content', 'PDF parser library not available (vendor/autoload.php missing or not loaded).' );
 
             return '';
-        } else {
-            ErrorLog::instance()->log( 'file_content_debug', 'Read PDF file (' . strlen( $raw ) . ' bytes): ' . $file_path );
         }
 
-        $text_parts = [];
-
-        preg_match_all( '/stream(.*?)endstream/s', $raw, $stream_matches );
-
-        if ( empty( $stream_matches[ 1 ] ) ) {
-            ErrorLog::instance()->log( 'file_content', 'No stream objects found in PDF: ' . $file_path );
+        try {
+            $parser   = new \PTScannerVendor\Smalot\PdfParser\Parser();
+            $pdf      = $parser->parseFile( $file_path );
+            $text     = $pdf->getText();
+        } catch ( \Throwable $e ) {
+            ErrorLog::instance()->log( 'file_content', 'PDF parsing failed for ' . $file_path . ': ' . $e->getMessage() );
 
             return '';
-        } else {
-            ErrorLog::instance()->log( 'file_content_debug', 'Found ' . count( $stream_matches[ 1 ] ) . ' stream objects in PDF: ' . $file_path );
         }
 
-        foreach ( $stream_matches[ 1 ] as $stream ) {
-            $stream  = ltrim( $stream, "\r\n" );
-            $decoded = @gzuncompress( $stream ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
-
-            $content = false !== $decoded ? $decoded : $stream;
-
-            preg_match_all( '/\((?:\\\\.|[^()\\\\])*\)\s*T[Jj]/', $content, $text_matches );
-
-            foreach ( $text_matches[ 0 ] as $match ) {
-                preg_match( '/\((.*)\)/s', $match, $inner );
-
-                if ( isset( $inner[ 1 ] ) ) {
-                    $decoded_string = str_replace( [ '\\(', '\\)', '\\\\' ], [ '(', ')', '\\' ], $inner[ 1 ] );
-                    $text_parts[]   = $decoded_string;
-                }
-            }
+        if ( '' === trim( (string) $text ) ) {
+            ErrorLog::instance()->log( 'file_content', 'Extracted empty text from PDF: ' . $file_path );
         }
 
-        if ( empty( $text_parts ) ) {
-            ErrorLog::instance()->log( 'file_content', 'No extractable Tj/TJ text operators found in PDF: ' . $file_path );
-        } else {
-            ErrorLog::instance()->log( 'file_content_debug', 'Extracted PDF text (first 300 chars): ' . substr( implode( ' ', $text_parts ), 0, 300 ) );
-        }
-
-        return implode( ' ', $text_parts );
+        return (string) $text;
     } // End extract_pdf_text()
 
 }

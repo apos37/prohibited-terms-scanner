@@ -23,6 +23,7 @@ class Settings {
     private const OPT_WARNING_TERMS    = 'ptscanner_warning_terms';
     private const OPT_WARNING_ENABLED  = 'ptscanner_warning_enabled';
     private const OPT_SHORTCODE_ROLES  = 'ptscanner_shortcode_roles';
+    private const OPT_PDF_PAGE_LOOKUP = 'ptscanner_pdf_page_lookup';
 
 
     /**
@@ -271,6 +272,16 @@ class Settings {
 
 
     /**
+     * Whether PDF page-number lookup is enabled (heavier per-page parsing)
+     *
+     * @return bool
+     */
+    public function get_pdf_page_lookup() : bool {
+        return filter_var( get_option( self::OPT_PDF_PAGE_LOOKUP, false ), FILTER_VALIDATE_BOOLEAN );
+    } // End get_pdf_page_lookup()
+
+
+    /**
      * Handle the settings form submission (AJAX)
      *
      * @return void
@@ -304,6 +315,9 @@ class Settings {
 
         // Warning toggle + terms.
         update_option( self::OPT_WARNING_ENABLED, isset( $_POST[ 'warning_enabled' ] ), false );
+
+        // PDF page lookup.
+        update_option( self::OPT_PDF_PAGE_LOOKUP, isset( $_POST[ 'pdf_page_lookup' ] ), false );
 
         if ( isset( $_POST[ 'warning_terms_json' ] ) ) {
             $raw_json = wp_unslash( $_POST[ 'warning_terms_json' ] );

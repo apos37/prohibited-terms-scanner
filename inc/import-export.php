@@ -81,6 +81,7 @@ class ImportExport {
             'enabled_location_types' => $settings->get_enabled_location_types(),
             'enabled_post_types'     => $settings->get_enabled_post_types(),
             'batch_size'             => $settings->get_batch_size(),
+            'pdf_page_lookup'        => $settings->get_pdf_page_lookup(),
             'snippet_padding'        => $settings->get_snippet_padding(),
             'default_case_sensitive' => $settings->get_default_case_sensitive(),
             'default_strict'         => $settings->get_default_strict(),
@@ -155,6 +156,10 @@ class ImportExport {
 
         if ( isset( $data[ 'batch_size' ] ) ) {
             update_option( 'ptscanner_batch_size', max( 1, absint( $data[ 'batch_size' ] ) ), false );
+        }
+
+        if ( isset( $data[ 'pdf_page_lookup' ] ) ) {
+            update_option( 'ptscanner_pdf_page_lookup', (bool) $data[ 'pdf_page_lookup' ], false );
         }
 
         if ( isset( $data[ 'snippet_padding' ] ) ) {

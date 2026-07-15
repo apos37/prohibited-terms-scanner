@@ -3,7 +3,7 @@
  * Plugin Name:         Prohibited Terms Scanner
  * Plugin URI:          https://pluginrx.com/plugin/prohibited-terms-scanner
  * Description:         Scan pages, posts, media, and files for prohibited terms and phrases.
- * Version:             1.0.0
+ * Version:             1.1.0
  * Requires at least:   6.0
  * Tested up to:        7.0
  * Requires PHP:        7.4
@@ -106,6 +106,12 @@ final class Bootstrap {
      * @return void
      */
     public function load_files() {
+        $autoloader = self::path( 'vendor/pdfparser-autoload.php' );
+
+        if ( file_exists( $autoloader ) ) {
+            require_once $autoloader;
+        }
+
         foreach ( self::FILES as $file ) {
             require_once self::path( $file );
         }

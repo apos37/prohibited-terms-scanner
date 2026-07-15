@@ -1,0 +1,17 @@
+{
+    "name": "pluginrx/prohibited-terms-scanner",
+    "description": "Composer dependencies for Prohibited Terms Scanner",
+    "type": "wordpress-plugin",
+    "license": "GPL-2.0-or-later",
+    "require": {
+        "php": ">=7.4",
+        "smalot/pdfparser": "^2.0"
+    },
+    "config": {
+        "optimize-autoloader": true,
+        "platform-check": false
+    },
+    "require-dev": {
+        "humbug/php-scoper": "^0.17.5"
+    }
+}

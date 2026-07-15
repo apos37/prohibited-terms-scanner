@@ -1,1 +1,14 @@
+# Ignore build artifacts
 /.zipignore
+
+# PHP-Scoper build artifacts — not needed once vendor/ is finalized and committed
+/vendor-scoped/
+/.php-scoper.cache/
+
+# OS/editor junk
+.DS_Store
+Thumbs.db
+*.log
+
+# Local environment files, if you ever add any
+.env
