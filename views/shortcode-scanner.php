@@ -72,6 +72,12 @@ if ( ! defined( 'ABSPATH' ) ) exit;
             <li><button type="button" class="button-link ptscanner-front-tab" data-status="ignored"><?php esc_html_e( 'Marked as OK', 'prohibited-terms-scanner' ); ?></button></li>
         </ul>
 
+        <div class="ptscanner-front-clear-all-wrap">
+            <button type="button" class="button" id="ptscanner-front-clear-all" data-status="flagged">
+                <?php esc_html_e( 'Clear All', 'prohibited-terms-scanner' ); ?>
+            </button>
+        </div>
+
         <table class="ptscanner-front-table ptscanner-results-table">
             <thead>
                 <tr>

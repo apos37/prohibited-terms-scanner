@@ -242,6 +242,28 @@ class DB {
 
 
     /**
+     * Delete all rows matching a given status
+     *
+     * @param string $status
+     * @return int Number of rows deleted
+     */
+    public function delete_all_by_status( $status ) : int {
+        global $wpdb;
+
+        $table_name = $this->table();
+
+        $deleted = $wpdb->query(
+            $wpdb->prepare(
+                "DELETE FROM {$table_name} WHERE status = %s",
+                $status
+            )
+        );
+
+        return false !== $deleted ? (int) $deleted : 0;
+    } // End delete_all_by_status()
+
+
+    /**
      * Get a count of flagged occurrences grouped by term
      *
      * @return array Array of [ 'term' => string, 'count' => int ]

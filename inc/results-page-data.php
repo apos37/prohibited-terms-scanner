@@ -94,6 +94,16 @@ class ResultsPageData {
         $row[ 'location_label' ] = $type[ 'label' ] ?? ucwords( str_replace( '_', ' ', $row[ 'location_type' ] ) );
         $row[ 'context_highlighted' ] = $this->highlight_term( $row[ 'context_snippet' ], $row[ 'term' ] );
 
+        // Taxonomy term links point to admin-only management screens for some
+        // registered taxonomies, or may not resolve to a public archive at all
+        // depending on the taxonomy's rewrite settings — restrict to admins.
+        if ( 'term' === $row[ 'source_type' ] && ! current_user_can( 'manage_options' ) ) {
+            $row[ 'display_link' ]   = '';
+            $row[ 'highlight_link' ] = '';
+
+            return $row;
+        }
+
         $link = '';
 
         if ( $type && isset( $type[ 'link_callback' ] ) && is_callable( $type[ 'link_callback' ] ) ) {
@@ -104,14 +114,12 @@ class ResultsPageData {
             }
         }
 
-        // Fall back to the stored source_url if the callback fails or type is unknown (e.g. deactivated add-on).
         if ( '' === $link && ! empty( $row[ 'source_url' ] ) ) {
             $link = $row[ 'source_url' ];
         }
 
         $row[ 'display_link' ] = $link;
 
-        // Build the highlight-and-blink URL only for linkable, page-based sources.
         if ( '' !== $link && in_array( $row[ 'source_type' ], [ 'post', 'comment', 'term' ], true ) ) {
             $row[ 'highlight_link' ] = add_query_arg( 'ptscanner_term', rawurlencode( $row[ 'term' ] ), $link );
         } else {

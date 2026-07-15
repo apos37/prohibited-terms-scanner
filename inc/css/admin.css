@@ -211,7 +211,21 @@
 }
 
 .ptscanner-results-page .subsubsub {
-    margin-bottom: 10px;
+    display: inline-block;
+    margin: 0;
+}
+
+.ptscanner-clear-all-wrap {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 8px 0 15px;
+}
+
+.ptscanner-front-clear-all-wrap {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 12px;
 }
 
 .ptscanner-row-actions {

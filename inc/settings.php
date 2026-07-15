@@ -55,7 +55,7 @@ class Settings {
      * Constructor
      */
     private function __construct() {
-        add_action( 'admin_post_ptscanner_save_settings', [ $this, 'handle_save' ] );
+        add_action( 'wp_ajax_ptscanner_save_settings', [ $this, 'handle_save' ] );
     } // End __construct()
 
 
@@ -271,15 +271,15 @@ class Settings {
 
 
     /**
-     * Handle the settings form submission
+     * Handle the settings form submission (AJAX)
      *
      * @return void
      */
     public function handle_save() {
-        check_admin_referer( $this->nonce, $this->nonce . '_field' );
+        check_ajax_referer( $this->nonce, $this->nonce . '_field' );
 
         if ( ! current_user_can( 'manage_options' ) ) {
-            wp_die( esc_html__( 'Permission denied.', 'prohibited-terms-scanner' ) );
+            wp_send_json_error( [ 'message' => __( 'Permission denied.', 'prohibited-terms-scanner' ) ] );
         }
 
         // Location types.
@@ -306,10 +306,13 @@ class Settings {
         update_option( self::OPT_WARNING_ENABLED, isset( $_POST[ 'warning_enabled' ] ), false );
 
         if ( isset( $_POST[ 'warning_terms_json' ] ) ) {
-            $decoded = json_decode( sanitize_textarea_field( wp_unslash( $_POST[ 'warning_terms_json' ] ) ), true );
+            $raw_json = wp_unslash( $_POST[ 'warning_terms_json' ] );
+            $decoded  = json_decode( $raw_json, true );
 
             if ( is_array( $decoded ) ) {
                 $this->save_warning_terms( $decoded );
+            } elseif ( '' !== trim( $raw_json ) ) {
+                ErrorLog::instance()->log( 'settings_save', 'Failed to decode warning_terms_json: ' . json_last_error_msg() );
             }
         }
 
@@ -317,8 +320,10 @@ class Settings {
         $shortcode_roles = isset( $_POST[ 'shortcode_roles' ] ) ? array_map( 'sanitize_key', wp_unslash( (array) $_POST[ 'shortcode_roles' ] ) ) : [];
         update_option( self::OPT_SHORTCODE_ROLES, $shortcode_roles, false );
 
-        wp_safe_redirect( add_query_arg( 'settings-updated', 'true', Bootstrap::settings_url() ) );
-        exit;
+        wp_send_json_success( [ 'message' => __( 'Settings saved.', 'prohibited-terms-scanner' ) ] );
     } // End handle_save()
 
 }
+
+
+Settings::instance();

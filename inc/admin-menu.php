@@ -55,7 +55,7 @@ class AdminMenu {
     public function register_menu() {
         $textdomain = Bootstrap::textdomain();
 
-        $this->screen_hooks[] = add_menu_page(
+        $this->screen_hooks[ 'scanner' ] = add_menu_page(
             Bootstrap::name(),
             __( 'Term Scanner', 'prohibited-terms-scanner' ),
             'manage_options',
@@ -65,7 +65,7 @@ class AdminMenu {
             80
         );
 
-        $this->screen_hooks[] = add_submenu_page(
+        add_submenu_page(
             $textdomain,
             __( 'Scanner', 'prohibited-terms-scanner' ),
             __( 'Scanner', 'prohibited-terms-scanner' ),
@@ -74,7 +74,7 @@ class AdminMenu {
             [ $this, 'render_scanner_page' ]
         );
 
-        $this->screen_hooks[] = add_submenu_page(
+        $this->screen_hooks[ 'results' ] = add_submenu_page(
             $textdomain,
             __( 'Results', 'prohibited-terms-scanner' ),
             __( 'Results', 'prohibited-terms-scanner' ),
@@ -83,7 +83,7 @@ class AdminMenu {
             [ $this, 'render_results_page' ]
         );
 
-        $this->screen_hooks[] = add_submenu_page(
+        $this->screen_hooks[ 'settings' ] = add_submenu_page(
             $textdomain,
             __( 'Settings', 'prohibited-terms-scanner' ),
             __( 'Settings', 'prohibited-terms-scanner' ),
@@ -92,7 +92,7 @@ class AdminMenu {
             [ $this, 'render_settings_page' ]
         );
 
-        $this->screen_hooks[] = add_submenu_page(
+        $this->screen_hooks[ 'import_export' ] = add_submenu_page(
             $textdomain,
             __( 'Import/Export', 'prohibited-terms-scanner' ),
             __( 'Import/Export', 'prohibited-terms-scanner' ),
@@ -101,7 +101,7 @@ class AdminMenu {
             [ $this, 'render_import_export_page' ]
         );
 
-        $this->screen_hooks[] = add_submenu_page(
+        $this->screen_hooks[ 'errors' ] = add_submenu_page(
             $textdomain,
             __( 'Errors', 'prohibited-terms-scanner' ),
             __( 'Errors', 'prohibited-terms-scanner' ),
@@ -180,7 +180,7 @@ class AdminMenu {
 
         // Terms UI + scanner: scanner page and results page (results page needs
         // terms-ui/scanner absent, but keeping the check simple, only load on scanner page).
-        if ( $current_screen->id === 'toplevel_page_' . $textdomain ) {
+        if ( $current_screen->id === $this->screen_hooks[ 'scanner' ] ) {
             wp_enqueue_script(
                 $textdomain . '-terms-ui',
                 Bootstrap::url( 'inc/js/terms-ui.js' ),
@@ -207,8 +207,8 @@ class AdminMenu {
         }
 
         // Results page and Errors page (both use results.js's simple button-click pattern).
-        if ( $current_screen->id === $textdomain . '_page_' . $textdomain . '_results'
-            || $current_screen->id === $textdomain . '_page_' . $textdomain . '_errors' ) {
+        if ( $current_screen->id === $this->screen_hooks[ 'results' ]
+            || $current_screen->id === $this->screen_hooks[ 'errors' ] ) {
             wp_enqueue_script(
                 $textdomain . '-results',
                 Bootstrap::url( 'inc/js/results.js' ),
@@ -219,7 +219,7 @@ class AdminMenu {
         }
 
         // Settings page.
-        if ( $current_screen->id === $textdomain . '_page_' . $textdomain . '_settings' ) {
+        if ( $current_screen->id === $this->screen_hooks[ 'settings' ] ) {
             wp_enqueue_script(
                 $textdomain . '-warning-terms-ui',
                 Bootstrap::url( 'inc/js/warning-terms-ui.js' ),
@@ -227,10 +227,18 @@ class AdminMenu {
                 $script_version,
                 true
             );
+
+            wp_enqueue_script(
+                $textdomain . '-settings',
+                Bootstrap::url( 'inc/js/settings.js' ),
+                [ $textdomain . '-core', $textdomain . '-warning-terms-ui' ],
+                $script_version,
+                true
+            );
         }
 
         // Import/Export page.
-        if ( $current_screen->id === $textdomain . '_page_' . $textdomain . '_import_export' ) {
+        if ( $current_screen->id === $this->screen_hooks[ 'import_export' ] ) {
             wp_enqueue_script(
                 $textdomain . '-import-export',
                 Bootstrap::url( 'inc/js/import-export.js' ),

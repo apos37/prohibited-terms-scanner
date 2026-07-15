@@ -23,7 +23,7 @@ $warning_terms     = $settings->get_warning_terms();
 
     <?php settings_errors( 'ptscanner-notices' ); ?>
 
-    <form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
+    <form method="post" id="ptscanner-settings-form">
         <?php wp_nonce_field( Settings::instance()->nonce_action(), Settings::instance()->nonce_action() . '_field' ); ?>
         <input type="hidden" name="action" value="ptscanner_save_settings">
 

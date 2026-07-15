@@ -126,3 +126,6 @@ class ErrorLog {
     } // End ajax_clear_errors()
 
 }
+
+
+ErrorLog::instance();

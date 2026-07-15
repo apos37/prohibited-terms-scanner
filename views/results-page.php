@@ -26,18 +26,26 @@ $ignored_url = add_query_arg( 'status', 'ignored', $base_url );
         </p>
     </header>
 
-    <ul class="subsubsub">
-        <li>
-            <a href="<?php echo esc_url( $flagged_url ); ?>" class="<?php echo 'flagged' === $status ? 'current' : ''; ?>">
-                <?php esc_html_e( 'Flagged', 'prohibited-terms-scanner' ); ?>
-            </a> |
-        </li>
-        <li>
-            <a href="<?php echo esc_url( $ignored_url ); ?>" class="<?php echo 'ignored' === $status ? 'current' : ''; ?>">
-                <?php esc_html_e( 'Marked as OK', 'prohibited-terms-scanner' ); ?>
-            </a>
-        </li>
-    </ul>
+    <div class="ptscanner-clear-all-wrap">
+        <ul class="subsubsub">
+            <li>
+                <a href="<?php echo esc_url( $flagged_url ); ?>" class="<?php echo 'flagged' === $status ? 'current' : ''; ?>">
+                    <?php esc_html_e( 'Flagged', 'prohibited-terms-scanner' ); ?>
+                </a> |
+            </li>
+            <li>
+                <a href="<?php echo esc_url( $ignored_url ); ?>" class="<?php echo 'ignored' === $status ? 'current' : ''; ?>">
+                    <?php esc_html_e( 'Marked as OK', 'prohibited-terms-scanner' ); ?>
+                </a>
+            </li>
+        </ul>
+
+        <?php if ( ! empty( $data[ 'rows' ] ) ) : ?>
+            <button type="button" class="button" id="ptscanner-clear-all" data-status="<?php echo esc_attr( $status ); ?>">
+                <?php esc_html_e( 'Clear All', 'prohibited-terms-scanner' ); ?>
+            </button>
+        <?php endif; ?>
+    </div>
 
     <table class="wp-list-table widefat fixed striped ptscanner-results-table">
         <thead>

@@ -43,6 +43,7 @@ class Ajax {
         add_action( 'wp_ajax_ptscanner_get_summary', [ $this, 'get_summary' ] );
         add_action( 'wp_ajax_ptscanner_get_results', [ $this, 'get_results' ] );
         add_action( 'wp_ajax_nopriv_ptscanner_get_results', [ $this, 'get_results' ] );
+        add_action( 'wp_ajax_ptscanner_clear_all', [ $this, 'clear_all' ] );
     } // End __construct()
 
 
@@ -271,6 +272,35 @@ class Ajax {
 
         wp_send_json_success( $data );
     } // End get_results()
+
+
+    /**
+     * Clear all results matching a given status
+     *
+     * @return void
+     */
+    public function clear_all() {
+        check_ajax_referer( 'ptscanner_nonce', 'nonce' );
+
+        if ( ! $this->current_user_can_scan() ) {
+            wp_send_json_error( [ 'message' => __( 'Permission denied.', 'prohibited-terms-scanner' ) ] );
+        }
+
+        $status = isset( $_POST[ 'status' ] ) ? sanitize_key( wp_unslash( $_POST[ 'status' ] ) ) : '';
+        $status = in_array( $status, [ 'flagged', 'ignored' ], true ) ? $status : '';
+
+        if ( '' === $status ) {
+            wp_send_json_error( [ 'message' => __( 'Invalid status.', 'prohibited-terms-scanner' ) ] );
+        }
+
+        $deleted = DB::instance()->delete_all_by_status( $status );
+
+        wp_send_json_success( [
+            /* translators: %d: number of results cleared */
+            'message' => sprintf( __( 'Cleared %d result(s).', 'prohibited-terms-scanner' ), $deleted ),
+            'deleted' => $deleted,
+        ] );
+    } // End clear_all()
 
 }
 

@@ -3,10 +3,9 @@ jQuery( function ( $ ) {
     /**
      * Upload warning
      *
-     * Warns (but never blocks) when a filename queued for upload matches a
-     * monitored term. Covers both the media modal (Backbone/plupload-based
-     * wp.Uploader) and plain <input type="file"> fields used on some
-     * classic screens. No build tooling required.
+     * Warns when a filename queued for upload matches a monitored term, and
+     * lets the person cancel the upload if they choose. Covers both native
+     * file input selection and drag-and-drop onto WordPress's media dropzone.
      */
     const ptscannerUploadWarning = {
 
@@ -31,8 +30,7 @@ jQuery( function ( $ ) {
                 return;
             }
 
-            this.hookMediaUploader();
-            this.hookPlainFileInputs();
+            this.hookFileInputs();
         }, // End init()
 
 
@@ -60,77 +58,76 @@ jQuery( function ( $ ) {
 
 
         /**
-         * Show a non-blocking confirm; result is informational only, upload proceeds regardless
+         * Check a filename and return whether the upload should proceed
          *
          * @param {string} filename
+         * @return {boolean} true to proceed, false to cancel
          */
-        warnIfFlagged: function ( filename ) {
+        confirmIfFlagged: function ( filename ) {
             const matches = this.getMatches( filename );
 
             if ( ! matches.length ) {
-                return;
+                return true;
             }
 
-            alert( ptscanner_upload_warning_data.message + matches.join( ', ' ) + ' (' + filename + ')' );
-        }, // End warnIfFlagged()
+            const message = ptscanner_upload_warning_data.message + matches.join( ', ' ) + ' (' + filename + '). ' + ptscanner_upload_warning_data.confirm;
+
+            return confirm( message );
+        }, // End confirmIfFlagged()
 
 
         /**
-         * Hook the media modal's uploader queue
-         *
-         * wp.Uploader wraps plupload; the 'wp-plupload' add-file event fires
-         * per file as it's added to the queue, before upload actually starts.
-         * We only warn here, never call up.abort() or similar, per spec.
+         * Hook both native file input selection and drag-and-drop
          */
-        hookMediaUploader: function () {
-            if ( typeof wp === 'undefined' || typeof wp.Uploader === 'undefined' ) {
-                return;
-            }
-
-            $( document ).on( 'wp-plupload-file-added wp-plupload-add-file', ( event, params ) => {
-                if ( params && params.filename ) {
-                    this.warnIfFlagged( params.filename );
+        hookFileInputs: function () {
+            document.addEventListener( 'change', ( event ) => {
+                if ( ! event.target || event.target.type !== 'file' ) {
+                    return;
                 }
-            } );
 
-            // Fallback: some WP versions surface the file via plupload's own queue event.
-            if ( wp.Uploader.prototype && wp.Uploader.prototype.init ) {
-                const originalInit = wp.Uploader.prototype.init;
-                const self = this;
-
-                wp.Uploader.prototype.init = function () {
-                    const result = originalInit.apply( this, arguments );
-
-                    if ( this.uploader && this.uploader.bind ) {
-                        this.uploader.bind( 'FilesAdded', function ( up, files ) {
-                            files.forEach( function ( file ) {
-                                self.warnIfFlagged( file.name );
-                            } );
-                        } );
-                    }
-
-                    return result;
-                };
-            }
-        }, // End hookMediaUploader()
-
-
-        /**
-         * Hook plain <input type="file"> fields (classic screens without the modal)
-         */
-        hookPlainFileInputs: function () {
-            $( document ).on( 'change', 'input[type="file"]', ( event ) => {
                 const files = event.target.files;
 
                 if ( ! files || ! files.length ) {
                     return;
                 }
 
+                let allowed = true;
+
                 for ( let i = 0; i < files.length; i++ ) {
-                    this.warnIfFlagged( files[ i ].name );
+                    if ( ! this.confirmIfFlagged( files[ i ].name ) ) {
+                        allowed = false;
+                        break;
+                    }
                 }
-            } );
-        }, // End hookPlainFileInputs()
+
+                if ( ! allowed ) {
+                    event.target.value = '';
+                    event.stopImmediatePropagation();
+                    event.preventDefault();
+                }
+            }, true );
+
+            document.addEventListener( 'drop', ( event ) => {
+                if ( ! event.dataTransfer || ! event.dataTransfer.files || ! event.dataTransfer.files.length ) {
+                    return;
+                }
+
+                const files = event.dataTransfer.files;
+                let allowed = true;
+
+                for ( let i = 0; i < files.length; i++ ) {
+                    if ( ! this.confirmIfFlagged( files[ i ].name ) ) {
+                        allowed = false;
+                        break;
+                    }
+                }
+
+                if ( ! allowed ) {
+                    event.stopImmediatePropagation();
+                    event.preventDefault();
+                }
+            }, true );
+        }, // End hookFileInputs()
 
     };
 

@@ -89,6 +89,8 @@ class HooksWarning {
         $textdomain     = Bootstrap::textdomain();
         $script_version = Bootstrap::script_version();
 
+        wp_enqueue_media();
+
         wp_register_script( $textdomain . '-core', false, [ 'jquery' ], $script_version, true );
         wp_enqueue_script( $textdomain . '-core' );
 
@@ -101,7 +103,7 @@ class HooksWarning {
         wp_enqueue_script(
             $textdomain . '-upload-warning',
             Bootstrap::url( 'inc/js/upload-warning.js' ),
-            [ $textdomain . '-core' ],
+            [ $textdomain . '-core', 'wp-plupload', 'media-views' ],
             $script_version,
             true
         );

@@ -454,7 +454,12 @@ class Scanner {
      * @return array
      */
     public function scan_file_contents( $terms, $offset, $limit ) : array {
-        $mimes = apply_filters( 'ptscanner_file_content_mimes', [ 'text/plain', 'text/csv' ] );
+        $mimes = apply_filters( 'ptscanner_file_content_mimes', [
+            'text/plain',
+            'text/csv',
+            'application/pdf',
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        ] );
 
         $attachment_ids = $this->get_attachment_batch( $offset, $limit, $mimes );
         $rows           = [];
@@ -470,7 +475,16 @@ class Scanner {
                 continue;
             }
 
-            $content = file_get_contents( $file );
+            $mime_type = get_post_mime_type( $attachment_id );
+
+            if ( 'application/pdf' === $mime_type ) {
+                $content = $this->extract_pdf_text( $file );
+            } elseif ( 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' === $mime_type ) {
+                $content = $this->extract_docx_text( $file );
+            } else {
+                $content = file_get_contents( $file );
+            }
+
             $matches = $this->match_terms( $content, $terms );
 
             foreach ( $matches as $match ) {
@@ -613,5 +627,104 @@ class Scanner {
     public function link_attachment( $source_id ) : string {
         return (string) wp_get_attachment_url( $source_id );
     } // End link_attachment()
+
+
+    /**
+     * Extract text from a .docx file using PHP's built-in ZipArchive
+     *
+     * @param string $file_path
+     * @return string
+     */
+    private function extract_docx_text( $file_path ) : string {
+        if ( ! class_exists( '\ZipArchive' ) ) {
+            ErrorLog::instance()->log( 'file_content', 'ZipArchive extension not available; cannot extract .docx text.' );
+
+            return '';
+        }
+
+        $zip = new \ZipArchive();
+        $open_result = $zip->open( $file_path );
+
+        if ( true !== $open_result ) {
+            ErrorLog::instance()->log( 'file_content', 'Could not open .docx as zip: ' . $file_path . ' (code ' . $open_result . ')' );
+
+            return '';
+        }
+
+        $xml = $zip->getFromName( 'word/document.xml' );
+        $zip->close();
+
+        if ( false === $xml ) {
+            ErrorLog::instance()->log( 'file_content', 'word/document.xml not found inside: ' . $file_path );
+
+            return '';
+        }
+
+        $xml  = str_replace( '</w:p>', ' </w:p>', $xml );
+        $text = wp_strip_all_tags( $xml );
+
+        if ( '' === trim( $text ) ) {
+            ErrorLog::instance()->log( 'file_content', 'Extracted empty text from .docx: ' . $file_path );
+        }
+
+        return $text;
+    } // End extract_docx_text()
+
+
+    /**
+     * Extract text from a .pdf file using only PHP's built-in zlib support
+     *
+     * Best-effort only: handles common FlateDecode-compressed text streams.
+     * Will not correctly handle encrypted PDFs, scanned/image-only PDFs, or
+     * PDFs using non-standard font encodings. For full-fidelity PDF parsing,
+     * a dedicated library is required; this covers the common case without
+     * one, per the site owner's choice to avoid bundled dependencies.
+     *
+     * @param string $file_path
+     * @return string
+     */
+    private function extract_pdf_text( $file_path ) : string {
+        $raw = file_get_contents( $file_path );
+
+        if ( false === $raw ) {
+            ErrorLog::instance()->log( 'file_content', 'Could not read PDF file: ' . $file_path );
+
+            return '';
+        }
+
+        $text_parts = [];
+
+        preg_match_all( '/stream(.*?)endstream/s', $raw, $stream_matches );
+
+        if ( empty( $stream_matches[ 1 ] ) ) {
+            ErrorLog::instance()->log( 'file_content', 'No stream objects found in PDF: ' . $file_path );
+
+            return '';
+        }
+
+        foreach ( $stream_matches[ 1 ] as $stream ) {
+            $stream  = ltrim( $stream, "\r\n" );
+            $decoded = @gzuncompress( $stream ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+
+            $content = false !== $decoded ? $decoded : $stream;
+
+            preg_match_all( '/\((?:\\\\.|[^()\\\\])*\)\s*T[Jj]/', $content, $text_matches );
+
+            foreach ( $text_matches[ 0 ] as $match ) {
+                preg_match( '/\((.*)\)/s', $match, $inner );
+
+                if ( isset( $inner[ 1 ] ) ) {
+                    $decoded_string = str_replace( [ '\\(', '\\)', '\\\\' ], [ '(', ')', '\\' ], $inner[ 1 ] );
+                    $text_parts[]   = $decoded_string;
+                }
+            }
+        }
+
+        if ( empty( $text_parts ) ) {
+            ErrorLog::instance()->log( 'file_content', 'No extractable Tj/TJ text operators found in PDF: ' . $file_path );
+        }
+
+        return implode( ' ', $text_parts );
+    } // End extract_pdf_text()
 
 }

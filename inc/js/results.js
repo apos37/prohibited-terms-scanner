@@ -82,6 +82,63 @@ jQuery( function ( $ ) {
                     }
                 } );
             } );
+
+            $( document ).on( 'click', '#ptscanner-clear-all', ( event ) => {
+                const button = $( event.currentTarget );
+                const status = button.data( 'status' );
+                const label = 'flagged' === status ? 'flagged results' : 'ignored results';
+
+                if ( ! confirm( 'Clear all ' + label + '? This cannot be undone.' ) ) {
+                    return;
+                }
+
+                button.prop( 'disabled', true );
+
+                $.post( ptscanner_data.ajaxUrl, {
+                    action: 'ptscanner_clear_all',
+                    nonce: ptscanner_data.nonce,
+                    status: status,
+                } ).done( ( response ) => {
+                    if ( response.success ) {
+                        window.location.reload();
+                    } else {
+                        button.prop( 'disabled', false );
+                        alert( response.data.message || 'Could not clear results.' );
+                    }
+                } ).fail( () => {
+                    button.prop( 'disabled', false );
+                    alert( ptscanner_data.strings.requestFailed || 'Request failed.' );
+                } );
+            } );
+
+            $( document ).on( 'click', '#ptscanner-front-clear-all', ( event ) => {
+                const status = this.frontStatus;
+                const label = 'flagged' === status ? 'flagged results' : 'ignored results';
+
+                if ( ! confirm( 'Clear all ' + label + '? This cannot be undone.' ) ) {
+                    return;
+                }
+
+                const button = $( event.currentTarget );
+                button.prop( 'disabled', true );
+
+                $.post( ptscanner_data.ajaxUrl, {
+                    action: 'ptscanner_clear_all',
+                    nonce: ptscanner_data.nonce,
+                    status: status,
+                } ).done( ( response ) => {
+                    button.prop( 'disabled', false );
+
+                    if ( response.success ) {
+                        this.loadFrontResults();
+                    } else {
+                        alert( response.data.message || 'Could not clear results.' );
+                    }
+                } ).fail( () => {
+                    button.prop( 'disabled', false );
+                    alert( ptscanner_data.strings.requestFailed || 'Request failed.' );
+                } );
+            } );
         }, // End bindEvents()
 
 
