@@ -41,6 +41,7 @@ class EriFileLibrary {
      */
     private function __construct() {
         add_filter( 'ptscanner_location_types', [ $this, 'register_types' ] );
+        add_action( 'edit_form_top', [ $this, 'render_content_warning' ] );
     } // End __construct()
 
 
@@ -279,6 +280,78 @@ class EriFileLibrary {
     public function link_eri_file( $post_id ) : string {
         return (string) get_edit_post_link( $post_id, '' );
     } // End link_eri_file()
+
+
+    /**
+     * Scan the file's content and display a warning notice directly on the
+     * edit screen, every time it's loaded — as long as a filename is saved.
+     * Runs on page load rather than on save, so it always reflects current
+     * state and doesn't depend on save-hook timing.
+     *
+     * @param \WP_Post $post
+     * @return void
+     */
+    public function render_content_warning( $post ) {
+        if ( 'erifl-files' !== $post->post_type ) {
+            return;
+        }
+
+        $settings = \PluginRx\ProhibitedTermsScanner\Settings::instance();
+
+        if ( ! $settings->is_warning_enabled() ) {
+            return;
+        }
+
+        $terms = $settings->get_warning_terms();
+
+        if ( empty( $terms ) ) {
+            return;
+        }
+
+        $eri      = $this->eri_post_type();
+        $filename = get_post_meta( $post->ID, $eri->meta_key_url, true );
+
+        if ( empty( $filename ) ) {
+            return;
+        }
+
+        $file_path = $eri->file_url( $post->ID, true );
+
+        if ( ! $file_path || ! file_exists( $file_path ) ) {
+            return;
+        }
+
+        try {
+            $content = Scanner::instance()->extract_file_content_for_path( $file_path );
+        } catch ( \Throwable $e ) {
+            ErrorLog::instance()->log( 'eri_upload_content_warning', 'Failed to extract content: ' . $e->getMessage() );
+
+            return;
+        }
+
+        if ( '' === trim( $content ) ) {
+            return;
+        }
+
+        $matches = Scanner::instance()->match_terms( $content, $terms );
+
+        if ( empty( $matches ) ) {
+            return;
+        }
+
+        $matched_terms = array_unique( wp_list_pluck( $matches, 'term' ) );
+
+        printf(
+            '<div class="notice notice-warning inline"><p>%s</p></div>',
+            esc_html(
+                sprintf(
+                    /* translators: %s: comma-separated list of flagged terms */
+                    __( 'This file\'s content contains a flagged term: %s', 'prohibited-terms-scanner' ),
+                    implode( ', ', $matched_terms )
+                )
+            )
+        );
+    } // End render_content_warning()
 
 }
 

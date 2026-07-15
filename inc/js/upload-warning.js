@@ -31,8 +31,8 @@ jQuery( function ( $ ) {
             }
 
             this.hookFileInputs();
+            this.hookUploadCompletion();
         }, // End init()
-
 
         /**
          * Check a filename against the term list
@@ -128,6 +128,23 @@ jQuery( function ( $ ) {
                 }
             }, true );
         }, // End hookFileInputs()
+
+
+        /**
+         * Watch every AJAX request on the page and react specifically to
+         * WordPress's upload endpoint's response — doesn't depend on
+         * Plupload's internal uploader instance timing at all, unlike the
+         * FilesAdded/FileUploaded events we tried previously that proved
+         * unreliable on this page.
+         */
+        hookUploadCompletion: function () {
+            console.log( 'ajaxComplete listener attached' );
+
+            $( document ).ajaxComplete( function ( event, xhr, settings ) {
+                console.log( 'AJAX completed. URL:', settings.url );
+                console.log( 'Response text:', xhr.responseText );
+            } );
+        }, // End hookUploadCompletion()
 
     };
 
