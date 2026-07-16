@@ -84,13 +84,13 @@ $ptscanner_ignored_url = add_query_arg( 'status', 'ignored', $ptscanner_base_url
                             <?php endif; ?>
                             <?php if ( ! empty( $ptscanner_row[ 'highlight_link' ] ) ) : ?>
                                 <a href="<?php echo esc_url( $ptscanner_row[ 'highlight_link' ] ); ?>" target="_blank">
-                                    <?php esc_html_e( 'View', 'prohibited-terms-scanner' ); ?>
+                                    <?php esc_html_e( 'View Source', 'prohibited-terms-scanner' ); ?>
                                 </a> |
                             <?php else : ?>
                                 &mdash;
                             <?php endif; ?>
                             <a href="#" class="ptscanner-toggle-omit" data-id="<?php echo esc_attr( $ptscanner_row[ 'source_id' ] ); ?>" data-type="<?php echo esc_attr( $ptscanner_row[ 'source_type' ] ); ?>" data-omitted="0">
-                                <?php esc_html_e( 'Omit', 'prohibited-terms-scanner' ); ?>
+                                <?php esc_html_e( 'Omit Source', 'prohibited-terms-scanner' ); ?>
                             </a>
                         </td>
                         <td><?php echo esc_html( mysql2date( 'Y-m-d g:i A', $ptscanner_row[ 'created_at' ] ) ); ?></td>

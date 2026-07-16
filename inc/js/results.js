@@ -339,10 +339,18 @@ jQuery( function ( $ ) {
             }
 
             if ( row.highlight_link ) {
-                sourceCell.append( $( '<a target="_blank"></a>' ).attr( 'href', row.highlight_link ).text( 'View' ) );
+                sourceCell.append( $( '<a target="_blank"></a>' ).attr( 'href', row.highlight_link ).text( 'View Source' ) ).append( ' | ' );
             } else {
-                sourceCell.text( sourceCell.text() + '—' );
+                sourceCell.append( '— ' );
             }
+
+            sourceCell.append(
+                $( '<a href="#" class="ptscanner-toggle-omit"></a>' )
+                    .attr( 'data-id', row.source_id )
+                    .attr( 'data-type', row.source_type )
+                    .attr( 'data-omitted', '0' )
+                    .text( 'Omit Source' )
+            );
 
             tr.append( sourceCell );
 
