@@ -308,6 +308,10 @@ class Scanner {
                 continue;
             }
 
+            if ( Omits::instance()->is_omitted( 'post', $comment->comment_post_ID ) ) {
+                continue;
+            }
+
             $matches = $this->match_terms( $comment->comment_content, $terms );
 
             foreach ( $matches as $match ) {
@@ -571,12 +575,22 @@ class Scanner {
     /**
      * Get a batch of public post IDs across all enabled post types
      *
+     * Excludes ERI File Library's own post type(s), since those are covered
+     * by dedicated eri_filename/eri_description/eri_file_content location
+     * types instead — scanning them generically here as well would cause
+     * omits to need checking under two different keys for the same file.
+     *
      * @param int $offset
      * @param int $limit
      * @return array
      */
     private function get_post_batch( $offset, $limit ) : array {
         $post_types = Settings::instance()->get_enabled_post_types();
+        $post_types = array_diff( $post_types, [ 'erifl-files', 'eri-files' ] );
+
+        if ( empty( $post_types ) ) {
+            return [];
+        }
 
         $query = new \WP_Query( [
             'post_type'      => $post_types,

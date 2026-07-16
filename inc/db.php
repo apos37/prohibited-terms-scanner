@@ -274,6 +274,34 @@ class DB {
 
 
     /**
+     * Delete all flagged results matching a specific source (used when a
+     * source is omitted, since those results will never be re-flagged anyway)
+     *
+     * @param string $source_type
+     * @param mixed  $source_id
+     * @return int Number of rows deleted
+     */
+    public function delete_by_source( $source_type, $source_id ) : int {
+        global $wpdb;
+
+        $table_name = $this->table();
+
+        $deleted = $wpdb->query(
+            $wpdb->prepare(
+                "DELETE FROM {$table_name} WHERE source_type = %s AND source_id = %d AND status = %s",
+                $source_type,
+                $source_id,
+                'flagged'
+            )
+        );
+
+        $this->clear_flagged_count_cache();
+
+        return false !== $deleted ? (int) $deleted : 0;
+    } // End delete_by_source()
+
+
+    /**
      * Get a count of flagged occurrences grouped by term
      *
      * @return array Array of [ 'term' => string, 'count' => int ]

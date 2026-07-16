@@ -167,19 +167,42 @@ jQuery( function ( $ ) {
 
                 const link = $( event.currentTarget );
                 const isOmitted = '1' === link.data( 'omitted' );
+                const id = link.data( 'id' );
+                const type = link.data( 'type' );
+                const self = this;
+
+                if ( ! isOmitted ) {
+                    if ( ! confirm( 'Omit this source from all future scans? Existing flagged results for this source will also be cleared.' ) ) {
+                        return;
+                    }
+                }
 
                 $.post( ptscanner_data.ajaxUrl, {
                     action: 'ptscanner_toggle_omit',
                     nonce: ptscanner_data.nonce,
-                    id: link.data( 'id' ),
-                    type: link.data( 'type' ),
+                    id: id,
+                    type: type,
                     omit: isOmitted ? '0' : '1',
                 } ).done( ( response ) => {
-                    if ( response.success ) {
-                        link.data( 'omitted', isOmitted ? '0' : '1' );
-                        link.text( isOmitted ? 'Omit' : 'Unomit' );
-                    } else {
+                    if ( ! response.success ) {
                         alert( response.data.message || 'Could not update.' );
+                        return;
+                    }
+
+                    if ( ! isOmitted ) {
+                        $( 'tr[data-id]' ).each( function () {
+                            const row = $( this );
+                            const rowOmitLink = row.find( '.ptscanner-toggle-omit' );
+
+                            if ( rowOmitLink.length && rowOmitLink.data( 'id' ) === id && rowOmitLink.data( 'type' ) === type ) {
+                                self.decrementMenuBadge();
+                                row.fadeOut( 200 );
+                                setTimeout( () => row.remove(), 200 );
+                            }
+                        } );
+                    } else {
+                        link.data( 'omitted', '0' );
+                        link.text( 'Omit' );
                     }
                 } );
             } );

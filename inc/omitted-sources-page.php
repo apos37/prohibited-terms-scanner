@@ -35,20 +35,39 @@ class OmittedSourcesPage {
         add_action( 'wp_ajax_ptscanner_toggle_omit', [ $this, 'ajax_toggle_omit' ] );
         add_action( 'wp_ajax_ptscanner_bulk_omit', [ $this, 'ajax_bulk_omit' ] );
 
-        // Row action links on standard admin list tables.
+        // Row action links — post_row_actions covers non-hierarchical post
+        // types (Posts, most custom post types), page_row_actions covers
+        // hierarchical ones (Pages, and any hierarchical custom post type).
         add_filter( 'post_row_actions', [ $this, 'add_row_action' ], 10, 2 );
+        add_filter( 'page_row_actions', [ $this, 'add_row_action' ], 10, 2 );
         add_filter( 'media_row_actions', [ $this, 'add_row_action' ], 10, 2 );
-        add_action( 'admin_footer-edit.php', [ $this, 'enqueue_row_action_script' ] );
-        add_action( 'admin_footer-upload.php', [ $this, 'enqueue_row_action_script' ] );
 
-        add_filter( 'bulk_actions-edit-post', [ $this, 'add_bulk_actions' ] );
-        add_filter( 'bulk_actions-edit-page', [ $this, 'add_bulk_actions' ] );
-        add_filter( 'bulk_actions-upload', [ $this, 'add_bulk_actions' ] );
-        add_filter( 'handle_bulk_actions-edit-post', [ $this, 'handle_bulk_actions' ], 10, 3 );
-        add_filter( 'handle_bulk_actions-edit-page', [ $this, 'handle_bulk_actions' ], 10, 3 );
-        add_filter( 'handle_bulk_actions-upload', [ $this, 'handle_bulk_actions' ], 10, 3 );
+        add_action( 'admin_enqueue_scripts', [ $this, 'maybe_enqueue_row_action_script' ] );
+
+        // Register bulk actions dynamically for every public post type, not
+        // just Posts/Pages, matching the same post types configurable in Settings.
+        add_action( 'admin_init', [ $this, 'register_bulk_actions_for_public_post_types' ] );
         add_action( 'admin_notices', [ $this, 'bulk_action_notice' ] );
+        add_filter( 'bulk_actions-upload', [ $this, 'add_bulk_actions' ] );
+        add_filter( 'handle_bulk_actions-upload', [ $this, 'handle_bulk_actions' ], 10, 3 );
     } // End __construct()
+
+
+    /**
+     * Register the bulk action dropdown option + handler for every
+     * registered public post type, so custom post types get the same
+     * Omit/Unignore bulk option as Posts and Pages
+     *
+     * @return void
+     */
+    public function register_bulk_actions_for_public_post_types() {
+        $post_types = get_post_types( [ 'public' => true ], 'names' );
+
+        foreach ( $post_types as $post_type ) {
+            add_filter( 'bulk_actions-edit-' . $post_type, [ $this, 'add_bulk_actions' ] );
+            add_filter( 'handle_bulk_actions-edit-' . $post_type, [ $this, 'handle_bulk_actions' ], 10, 3 );
+        }
+    } // End register_bulk_actions_for_public_post_types()
 
 
     /**
@@ -63,7 +82,8 @@ class OmittedSourcesPage {
             return $actions;
         }
 
-        $type       = 'attachment' === $post->post_type ? 'attachment' : 'post';
+        $type = $this->resolve_omit_type( $post->post_type );
+
         $is_omitted = Omits::instance()->is_omitted( $type, $post->ID );
         $label      = $is_omitted
             ? __( 'Unignore from Terms Scanner', 'prohibited-terms-scanner' )
@@ -82,54 +102,57 @@ class OmittedSourcesPage {
 
 
     /**
-     * Enqueue the small inline script that handles the row action click,
-     * only on the list table screens where it's needed
+     * Resolve the correct Omits type key for a given post type, matching
+     * whatever the scanner itself checks against for that source
      *
+     * @param string $post_type
+     * @return string
+     */
+    private function resolve_omit_type( string $post_type ) : string {
+        if ( 'attachment' === $post_type ) {
+            return 'attachment';
+        }
+
+        if ( in_array( $post_type, [ 'erifl-files', 'eri-files' ], true ) ) {
+            return 'eri_file';
+        }
+
+        return 'post';
+    } // End resolve_omit_type()
+
+
+    /**
+     * Enqueue the row action click handler, only on the list table screens
+     * where it's needed (Posts/Pages/CPT list tables, and Media Library)
+     *
+     * @param string $hook
      * @return void
      */
-    public function enqueue_row_action_script() {
-        $nonce = wp_create_nonce( 'ptscanner_nonce' );
-        $ajax_url = admin_url( 'admin-ajax.php' );
+    public function maybe_enqueue_row_action_script( $hook ) {
+        if ( ! in_array( $hook, [ 'edit.php', 'upload.php' ], true ) ) {
+            return;
+        }
 
-        $labels = wp_json_encode( [
-            'omit'   => __( 'Omit from Terms Scanner', 'prohibited-terms-scanner' ),
-            'unomit' => __( 'Unignore from Terms Scanner', 'prohibited-terms-scanner' ),
+        $textdomain     = Bootstrap::textdomain();
+        $script_version = Bootstrap::script_version();
+
+        wp_enqueue_script(
+            $textdomain . '-row-actions',
+            Bootstrap::url( 'inc/js/row-actions.js' ),
+            [ 'jquery' ],
+            $script_version,
+            true
+        );
+
+        wp_localize_script( $textdomain . '-row-actions', 'ptscanner_row_actions_data', [
+            'ajaxUrl' => admin_url( 'admin-ajax.php' ),
+            'nonce'   => wp_create_nonce( 'ptscanner_nonce' ),
+            'labels'  => [
+                'omit'   => __( 'Omit from Terms Scanner', 'prohibited-terms-scanner' ),
+                'unomit' => __( 'Unignore from Terms Scanner', 'prohibited-terms-scanner' ),
+            ],
         ] );
-
-        echo '<script>
-        jQuery( function ( $ ) {
-            var ptscannerLabels = ' . $labels . ';
-
-            $( document ).on( "click", ".ptscanner-toggle-omit", function ( event ) {
-                event.preventDefault();
-
-                var link = $( this );
-                var id = link.data( "id" );
-                var type = link.data( "type" );
-                var isOmitted = link.data( "omitted" ) == 1;
-
-                $.post( "' . esc_url( $ajax_url ) . '", {
-                    action: "ptscanner_toggle_omit",
-                    nonce: "' . esc_js( $nonce ) . '",
-                    id: id,
-                    type: type,
-                    omit: isOmitted ? "0" : "1"
-                } ).done( function ( response ) {
-                    if ( ! response.success ) {
-                        alert( response.data.message || "Could not update." );
-                        return;
-                    }
-
-                    var nowOmitted = ! isOmitted;
-                    link.data( "omitted", nowOmitted ? "1" : "0" );
-                    link.text( nowOmitted ? ptscannerLabels.unomit : ptscannerLabels.omit );
-                } ).fail( function () {
-                    alert( "Request failed." );
-                } );
-            } );
-        } );
-        </script>';
-    } // End enqueue_row_action_script()
+    } // End maybe_enqueue_row_action_script()
 
 
     /**
@@ -152,14 +175,19 @@ class OmittedSourcesPage {
             wp_send_json_error( [ 'message' => __( 'Invalid request.', 'prohibited-terms-scanner' ) ] );
         }
 
+        $cleared = 0;
+
         if ( $omit ) {
-            $label = $type === 'attachment' ? get_the_title( $id ) : get_the_title( $id );
-            Omits::instance()->add( $type, $id, $label );
+            Omits::instance()->add( $type, $id, get_the_title( $id ) );
+            $cleared = DB::instance()->delete_by_source( $type, $id );
         } else {
             Omits::instance()->remove( $type, $id );
         }
 
-        wp_send_json_success( [ 'message' => __( 'Updated.', 'prohibited-terms-scanner' ) ] );
+        wp_send_json_success( [
+            'message' => __( 'Updated.', 'prohibited-terms-scanner' ),
+            'cleared' => $cleared,
+        ] );
     } // End ajax_toggle_omit()
 
 
@@ -237,7 +265,7 @@ class OmittedSourcesPage {
         $count = 0;
 
         foreach ( $post_ids as $post_id ) {
-            $type = 'attachment' === get_post_type( $post_id ) ? 'attachment' : 'post';
+            $type = $this->resolve_omit_type( get_post_type( $post_id ) );
 
             if ( 'ptscanner_omit' === $action ) {
                 Omits::instance()->add( $type, $post_id, get_the_title( $post_id ) );
@@ -277,3 +305,6 @@ class OmittedSourcesPage {
     } // End bulk_action_notice()
 
 }
+
+
+OmittedSourcesPage::instance();

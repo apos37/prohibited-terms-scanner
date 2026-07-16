@@ -226,9 +226,10 @@ class AdminMenu {
             );
         }
 
-        // Results page and Errors page (both use results.js's simple button-click pattern).
+        // Results page, Errors page, and Omitted Sources page all use results.js's button-click patterns.
         if ( $current_screen->id === $this->screen_hooks[ 'results' ]
-            || $current_screen->id === $this->screen_hooks[ 'errors' ] ) {
+            || $current_screen->id === $this->screen_hooks[ 'errors' ]
+            || $current_screen->id === $this->screen_hooks[ 'omitted' ] ) {
             wp_enqueue_script(
                 $textdomain . '-results',
                 Bootstrap::url( 'inc/js/results.js' ),

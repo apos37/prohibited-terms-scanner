@@ -6,6 +6,8 @@
 namespace PluginRx\ProhibitedTermsScanner;
 
 if ( ! defined( 'ABSPATH' ) ) exit;
+
+$settings = Settings::instance();
 ?>
 <div class="wrap ptscanner-wrap ptscanner-scanner-page">
     <header class="ptscanner-header">
@@ -22,7 +24,7 @@ if ( ! defined( 'ABSPATH' ) ) exit;
     <?php endif; ?>
 
     <div class="ptscanner-card">
-        <details class="ptscanner-terms-accordion" open>
+        <details class="ptscanner-terms-accordion" <?php echo empty( $settings->get_terms() ) ? 'open' : ''; ?>>
             <summary><?php esc_html_e( 'Terms & Options', 'prohibited-terms-scanner' ); ?></summary>
 
             <div class="ptscanner-terms-input">

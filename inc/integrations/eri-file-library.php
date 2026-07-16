@@ -172,6 +172,14 @@ class EriFileLibrary {
             return $types;
         }
 
+        $types[ 'eri_title' ] = [
+            'label'           => __( 'ERI File Library Title', 'prohibited-terms-scanner' ),
+            'group'           => 'files',
+            'source_callback' => [ $this, 'scan_eri_titles' ],
+            'link_callback'   => [ $this, 'link_eri_file' ],
+            'default_enabled' => true,
+        ];
+
         $types[ 'eri_filename' ] = [
             'label'           => __( 'ERI File Library Filename', 'prohibited-terms-scanner' ),
             'group'           => 'files',
@@ -221,6 +229,36 @@ class EriFileLibrary {
 
         return $query->posts;
     } // End get_eri_batch()
+
+
+    /**
+     * Scan ERI file post titles
+     *
+     * @param array $terms
+     * @param int   $offset
+     * @param int   $limit
+     * @return array
+     */
+    public function scan_eri_titles( $terms, $offset, $limit ) : array {
+        $post_ids = $this->get_eri_batch( $offset, $limit );
+        $rows     = [];
+        $scanner  = Scanner::instance();
+
+        foreach ( $post_ids as $post_id ) {
+            if ( Omits::instance()->is_omitted( 'eri_file', $post_id ) ) {
+                continue;
+            }
+
+            $title   = get_the_title( $post_id );
+            $matches = $scanner->match_terms( $title, $terms );
+
+            foreach ( $matches as $match ) {
+                $rows[] = $this->build_row( $scanner, $match, 'eri_title', $post_id );
+            }
+        }
+
+        return [ 'rows' => $rows, 'done' => count( $post_ids ) < $limit ];
+    } // End scan_eri_titles()
 
 
     /**

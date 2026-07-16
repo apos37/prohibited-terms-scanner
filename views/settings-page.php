@@ -58,6 +58,7 @@ $warning_terms     = $settings->get_warning_terms();
             <p class="description"><?php esc_html_e( 'Choose which public post types are included when scanning content.', 'prohibited-terms-scanner' ); ?></p>
 
             <?php foreach ( $post_types as $post_type ) : ?>
+                <?php if ( in_array( $post_type->name, [ 'erifl-files', 'eri-files' ], true ) ) : continue; endif; ?>
                 <label class="ptscanner-type-checkbox">
                     <input type="checkbox" name="post_types[]" value="<?php echo esc_attr( $post_type->name ); ?>"
                         <?php checked( in_array( $post_type->name, $enabled_post_types, true ) ); ?>>
@@ -143,18 +144,22 @@ $warning_terms     = $settings->get_warning_terms();
                 <?php esc_html_e( 'Warn before saving a post/page or uploading a file that contains a monitored term', 'prohibited-terms-scanner' ); ?>
             </label>
 
-            <div class="ptscanner-warning-terms-input">
-                <label for="ptscanner-warning-terms-textarea"><?php esc_html_e( 'Monitored terms, one per line', 'prohibited-terms-scanner' ); ?></label>
-                <textarea id="ptscanner-warning-terms-textarea" rows="4" class="large-text"></textarea>
-                <button type="button" class="button" id="ptscanner-add-warning-terms">
-                    <?php esc_html_e( 'Add Terms', 'prohibited-terms-scanner' ); ?>
-                </button>
-                <button type="button" class="button" id="ptscanner-clear-all-warning-terms">
-                    <?php esc_html_e( 'Clear All Terms', 'prohibited-terms-scanner' ); ?>
-                </button>
-            </div>
+            <details class="ptscanner-terms-accordion" <?php echo empty( $settings->get_warning_terms() ) ? 'open' : ''; ?>>
+                <summary><?php esc_html_e( 'Monitored Terms', 'prohibited-terms-scanner' ); ?></summary>
 
-            <div class="ptscanner-terms-cards" id="ptscanner-warning-terms-cards"></div>
+                <div class="ptscanner-warning-terms-input">
+                    <label for="ptscanner-warning-terms-textarea"><?php esc_html_e( 'Monitored terms, one per line', 'prohibited-terms-scanner' ); ?></label>
+                    <textarea id="ptscanner-warning-terms-textarea" rows="4" class="large-text"></textarea>
+                    <button type="button" class="button" id="ptscanner-add-warning-terms">
+                        <?php esc_html_e( 'Add Terms', 'prohibited-terms-scanner' ); ?>
+                    </button>
+                    <button type="button" class="button" id="ptscanner-clear-all-warning-terms">
+                        <?php esc_html_e( 'Clear All Terms', 'prohibited-terms-scanner' ); ?>
+                    </button>
+                </div>
+
+                <div class="ptscanner-terms-cards" id="ptscanner-warning-terms-cards"></div>
+            </details>
 
             <input type="hidden" name="warning_terms_json" id="ptscanner-warning-terms-json">
         </div>
