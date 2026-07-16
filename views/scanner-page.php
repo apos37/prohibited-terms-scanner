@@ -41,7 +41,9 @@ $settings = Settings::instance();
                 </p>
             </div>
 
-            <div class="ptscanner-terms-cards" id="ptscanner-terms-cards"></div>
+            <div class="ptscanner-terms-cards" id="ptscanner-terms-cards">
+                <p class="ptscanner-terms-loading"><?php esc_html_e( 'Fetching terms…', 'prohibited-terms-scanner' ); ?></p>
+            </div>
         </details>
 
         <div class="ptscanner-terms-pills" id="ptscanner-terms-pills" style="display:none;"></div>

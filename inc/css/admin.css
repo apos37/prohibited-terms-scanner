@@ -27,6 +27,28 @@
     cursor: pointer;
     font-weight: 600;
     padding: 8px 0;
+    list-style: none;
+    position: relative;
+    padding-left: 20px;
+}
+
+.ptscanner-terms-accordion summary::-webkit-details-marker {
+    display: none;
+}
+
+.ptscanner-terms-accordion summary::before {
+    content: "▶";
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 11px;
+    color: #50575e;
+    transition: transform 0.15s ease;
+}
+
+.ptscanner-terms-accordion[open] summary::before {
+    transform: translateY(-50%) rotate(90deg);
 }
 
 .ptscanner-terms-input {
@@ -36,6 +58,7 @@
 .ptscanner-terms-input textarea {
     display: block;
     margin: 8px 0;
+    width: 100%;
 }
 
 .ptscanner-inline-notice {
@@ -46,6 +69,12 @@
 
 .ptscanner-strict-note {
     margin-top: 1rem !important;
+}
+
+.ptscanner-terms-loading {
+    color: #646970;
+    font-style: italic;
+    margin: 8px 0;
 }
 
 .ptscanner-terms-cards {

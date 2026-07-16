@@ -49,10 +49,7 @@ class Omits {
     /**
      * Constructor
      */
-    private function __construct() {
-        add_action( 'wp_ajax_ptscanner_add_omit', [ $this, 'ajax_add_omit' ] );
-        add_action( 'wp_ajax_ptscanner_remove_omit', [ $this, 'ajax_remove_omit' ] );
-    } // End __construct()
+    private function __construct() {} // End __construct()
 
 
     /**
@@ -154,56 +151,5 @@ class Omits {
 
         return update_option( $this->option_key, $list, false );
     } // End remove()
-
-
-    /**
-     * AJAX: add an omit entry
-     *
-     * @return void
-     */
-    public function ajax_add_omit() {
-        check_ajax_referer( 'ptscanner_nonce', 'nonce' );
-
-        if ( ! current_user_can( 'manage_options' ) ) {
-            wp_send_json_error( [ 'message' => __( 'Permission denied.', 'prohibited-terms-scanner' ) ] );
-        }
-
-        $type  = isset( $_POST[ 'type' ] ) ? sanitize_key( wp_unslash( $_POST[ 'type' ] ) ) : '';
-        $id    = isset( $_POST[ 'id' ] ) ? sanitize_text_field( wp_unslash( $_POST[ 'id' ] ) ) : '';
-        $label = isset( $_POST[ 'label' ] ) ? sanitize_text_field( wp_unslash( $_POST[ 'label' ] ) ) : '';
-
-        if ( '' === $type || '' === $id ) {
-            wp_send_json_error( [ 'message' => __( 'Missing type or ID.', 'prohibited-terms-scanner' ) ] );
-        }
-
-        $this->add( $type, $id, $label );
-
-        wp_send_json_success( [ 'message' => __( 'Omitted successfully.', 'prohibited-terms-scanner' ) ] );
-    } // End ajax_add_omit()
-
-
-    /**
-     * AJAX: remove an omit entry
-     *
-     * @return void
-     */
-    public function ajax_remove_omit() {
-        check_ajax_referer( 'ptscanner_nonce', 'nonce' );
-
-        if ( ! current_user_can( 'manage_options' ) ) {
-            wp_send_json_error( [ 'message' => __( 'Permission denied.', 'prohibited-terms-scanner' ) ] );
-        }
-
-        $type = isset( $_POST[ 'type' ] ) ? sanitize_key( wp_unslash( $_POST[ 'type' ] ) ) : '';
-        $id   = isset( $_POST[ 'id' ] ) ? sanitize_text_field( wp_unslash( $_POST[ 'id' ] ) ) : '';
-
-        if ( '' === $type || '' === $id ) {
-            wp_send_json_error( [ 'message' => __( 'Missing type or ID.', 'prohibited-terms-scanner' ) ] );
-        }
-
-        $this->remove( $type, $id );
-
-        wp_send_json_success( [ 'message' => __( 'Removed from omit list.', 'prohibited-terms-scanner' ) ] );
-    } // End ajax_remove_omit()
 
 }
