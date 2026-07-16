@@ -127,8 +127,6 @@ class Ajax {
             wp_send_json_error( [ 'message' => __( 'No terms to search for.', 'prohibited-terms-scanner' ) ] );
         }
 
-        // Only a full admin scan may wipe prior flagged results; shortcode
-        // scans always append, never wipe, to avoid discarding shared history.
         $can_wipe = current_user_can( 'manage_options' );
 
         if ( $is_first_batch && $can_wipe ) {
@@ -139,16 +137,32 @@ class Ajax {
         $ignored_hashes = DB::instance()->get_match_hashes( 'ignored' );
         $flagged_hashes = DB::instance()->get_match_hashes( 'flagged' );
 
+        // Buffer any stray output (e.g. a shortcode or hook echoing directly
+        // instead of returning) so it can never corrupt our JSON response.
+        ob_start();
+
         try {
             $result = Scanner::instance()->run_batch( $location_type, $terms, $offset, $batch_size );
         } catch ( \Throwable $e ) {
-            ErrorLog::instance()->log( 'scan_batch', $e->getMessage(), [ 'location_type' => $location_type ] );
+            $stray_output = ob_get_clean();
+
+            if ( '' !== trim( $stray_output ) ) {
+                ErrorLog::instance()->log( 'stray_output', 'Unexpected output during scan (type: ' . $location_type . ', offset: ' . $offset . '): ' . substr( $stray_output, 0, 500 ) );
+            }
+
+            ErrorLog::instance()->log( 'scan_batch', $e->getMessage() );
 
             wp_send_json_error( [
-                // translators: %s is the error message.
+                /* translators: %s is the error message. */
                 'message' => sprintf( __( 'Scan error for this location type, skipping remainder: %s', 'prohibited-terms-scanner' ), $e->getMessage() ),
                 'done'    => true,
             ] );
+        }
+
+        $stray_output = ob_get_clean();
+
+        if ( '' !== trim( $stray_output ) ) {
+            ErrorLog::instance()->log( 'stray_output', 'Unexpected output during scan (type: ' . $location_type . ', offset: ' . $offset . '): ' . substr( $stray_output, 0, 500 ) );
         }
 
         $inserted = 0;
@@ -158,7 +172,6 @@ class Ajax {
                 continue;
             }
 
-            // Skip if already flagged (relevant for shortcode runs, which never wipe).
             if ( isset( $flagged_hashes[ $row[ 'match_hash' ] ] ) ) {
                 continue;
             }

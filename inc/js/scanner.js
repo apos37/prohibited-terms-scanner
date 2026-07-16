@@ -36,6 +36,18 @@ jQuery( function ( $ ) {
 
 
         /**
+         * Batch size used for this run
+         */
+        batchSize: 0,
+
+
+        /**
+         * Approximate running total of items checked so far this run
+         */
+        totalScanned: 0,
+
+
+        /**
          * Running total of inserted rows this run
          */
         totalInserted: 0,
@@ -141,12 +153,16 @@ jQuery( function ( $ ) {
             this.currentTypeIndex = 0;
             this.currentOffset = 0;
             this.isFirstBatchOfRun = true;
+            this.batchSize = parseInt( ptscanner_data.batchSize, 10 ) || 20;
+            this.totalScanned = 0;
             this.totalInserted = 0;
             this.cancelRequested = false;
 
             $( '#ptscanner-start-scan' ).prop( 'disabled', true ).hide();
             $( '#ptscanner-cancel-scan' ).show();
             $( '#ptscanner-progress' ).show();
+            $( '.ptscanner-progress-spinner' ).show();
+            $( '#ptscanner-progress-fill' ).removeClass( 'ptscanner-progress-stopped' );
             $( '#ptscanner-scan-errors' ).empty();
             $( '#ptscanner-summary' ).hide();
             this.updateProgressLabel( ptscanner_data.strings.scanning );
@@ -218,6 +234,7 @@ jQuery( function ( $ ) {
                 }
 
                 this.totalInserted += response.data.inserted;
+                this.totalScanned += this.batchSize;
                 this.updateProgress( currentType );
 
                 if ( response.data.done ) {
@@ -228,7 +245,7 @@ jQuery( function ( $ ) {
 
                 this.runNextBatch();
             } ).fail( () => {
-                this.logError( currentType, ptscanner_data.strings.requestFailed || 'Request failed (network or server error).' );
+                this.logError( currentType, ( ptscanner_data.strings.requestFailed || 'Request failed.' ) + ' (offset: ' + this.currentOffset + ')' );
                 this.advanceToNextType();
                 this.runNextBatch();
             } );
@@ -266,7 +283,10 @@ jQuery( function ( $ ) {
             const percent = Math.round( ( ( this.currentTypeIndex + 1 ) / this.typeQueue.length ) * 100 );
 
             $( '#ptscanner-progress-fill' ).css( 'width', percent + '%' );
-            this.updateProgressLabel( ptscanner_data.strings.scanning + ': ' + currentType + ' (' + this.totalInserted + ' found so far)' );
+            this.updateProgressLabel(
+                ptscanner_data.strings.scanning + ': ' + currentType +
+                ' (~' + this.totalScanned + ' checked, ' + this.totalInserted + ' found so far)'
+            );
         }, // End updateProgress()
 
 
@@ -276,7 +296,7 @@ jQuery( function ( $ ) {
          * @param {string} text
          */
         updateProgressLabel: function ( text ) {
-            $( '#ptscanner-progress-label' ).text( text );
+            $( '#ptscanner-progress-label-text' ).text( text );
         }, // End updateProgressLabel()
 
 
@@ -285,6 +305,8 @@ jQuery( function ( $ ) {
          */
         onRunComplete: function () {
             $( '#ptscanner-progress-fill' ).css( 'width', '100%' );
+            $( '.ptscanner-progress-spinner' ).hide();
+            $( '#ptscanner-progress-fill' ).addClass( 'ptscanner-progress-stopped' );
             this.updateProgressLabel( ptscanner_data.strings.done );
             this.resetControls();
             this.loadSummary();
@@ -300,6 +322,8 @@ jQuery( function ( $ ) {
          * Called when the user cancels mid-run
          */
         onRunCancelled: function () {
+            $( '.ptscanner-progress-spinner' ).hide();
+            $( '#ptscanner-progress-fill' ).addClass( 'ptscanner-progress-stopped' );
             this.updateProgressLabel( ptscanner_data.strings.cancelled || 'Scan cancelled. Results so far are saved.' );
             this.resetControls();
             this.loadSummary();

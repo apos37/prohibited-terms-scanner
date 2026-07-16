@@ -34,7 +34,9 @@ class Scanner {
     /**
      * Constructor
      */
-    private function __construct() {}
+    private function __construct() {
+        register_shutdown_function( [ $this, 'log_fatal_during_scan' ] );
+    } // End __construct()
 
 
     /**
@@ -205,6 +207,12 @@ class Scanner {
             if ( Omits::instance()->is_omitted( 'post', $post_id ) ) {
                 continue;
             }
+
+            update_option( 'ptscanner_last_processed', [
+                'type'    => 'content',
+                'post_id' => $post_id,
+                'time'    => current_time( 'mysql' ),
+            ], false );
 
             $raw_content = get_post_field( 'post_content', $post_id );
             $content     = $this->safe_do_shortcode( $raw_content, $post_id );
@@ -792,4 +800,34 @@ class Scanner {
         return '';
     } // End extract_file_content_for_path()
 
+
+    /**
+     * Detect a fatal error/timeout during a scan batch and log which post
+     * was being processed when it happened — this is the only way to catch
+     * a hard PHP timeout, since it can't be caught with try/catch.
+     *
+     * @return void
+     */
+    public function log_fatal_during_scan() {
+        $error = error_get_last();
+
+        if ( null === $error || ! in_array( $error[ 'type' ], [ E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR ], true ) ) {
+            return;
+        }
+
+        $last_processed = get_option( 'ptscanner_last_processed', null );
+
+        if ( null === $last_processed ) {
+            return;
+        }
+
+        ErrorLog::instance()->log(
+            'fatal_during_scan',
+            'A fatal error/timeout occurred while processing post ID ' . $last_processed[ 'post_id' ] . ' (type: ' . $last_processed[ 'type' ] . '). PHP error: ' . $error[ 'message' ]
+        );
+    } // End log_fatal_during_scan()
+
 }
+
+
+Scanner::instance();

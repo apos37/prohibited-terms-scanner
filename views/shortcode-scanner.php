@@ -49,7 +49,10 @@ if ( ! defined( 'ABSPATH' ) ) exit;
             <div class="ptscanner-progress-bar">
                 <div class="ptscanner-progress-fill" id="ptscanner-progress-fill"></div>
             </div>
-            <p class="ptscanner-progress-label" id="ptscanner-progress-label"></p>
+            <p class="ptscanner-progress-label">
+                <span class="ptscanner-progress-spinner"></span>
+                <span id="ptscanner-progress-label-text"></span>
+            </p>
             <ul class="ptscanner-scan-errors" id="ptscanner-scan-errors"></ul>
         </div>
     </div>

@@ -80,6 +80,15 @@ class AdminMenu {
             [ $this, 'render_results_page' ]
         );
 
+        $this->screen_hooks[ 'omitted' ] = add_submenu_page(
+            $textdomain,
+            __( 'Prohibited Terms Scanner > Omitted Sources', 'prohibited-terms-scanner' ),
+            __( 'Omitted Sources', 'prohibited-terms-scanner' ),
+            'manage_options',
+            $textdomain . '_omitted',
+            [ $this, 'render_omitted_page' ]
+        );
+
         $this->screen_hooks[ 'settings' ] = add_submenu_page(
             $textdomain,
             __( 'Prohibited Terms Scanner > Settings', 'prohibited-terms-scanner' ),
@@ -169,6 +178,7 @@ class AdminMenu {
             'enabledTypes'         => Settings::instance()->get_enabled_location_types(),
             'defaultCaseSensitive' => Settings::instance()->get_default_case_sensitive(),
             'defaultStrict'        => Settings::instance()->get_default_strict(),
+            'batchSize'            => Settings::instance()->get_batch_size(),
             'strings'              => [
                 'scanning'           => __( 'Scanning', 'prohibited-terms-scanner' ),
                 'done'               => __( 'Scan complete.', 'prohibited-terms-scanner' ),
@@ -293,6 +303,20 @@ class AdminMenu {
 
         require Bootstrap::path( 'views/results-page.php' );
     } // End render_results_page()
+
+
+    /**
+     * Render: Omitted Sources page
+     *
+     * @return void
+     */
+    public function render_omitted_page() {
+        if ( ! current_user_can( 'manage_options' ) ) {
+            return;
+        }
+
+        require Bootstrap::path( 'views/omitted-sources-page.php' );
+    } // End render_omitted_page()
 
 
     /**

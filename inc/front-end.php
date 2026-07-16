@@ -115,6 +115,7 @@ class FrontEnd {
             'enabledTypes'         => Settings::instance()->get_enabled_location_types(),
             'defaultCaseSensitive' => Settings::instance()->get_default_case_sensitive(),
             'defaultStrict'        => Settings::instance()->get_default_strict(),
+            'batchSize'            => Settings::instance()->get_batch_size(),
             'strings'              => [
                 'scanning'           => __( 'Scanning', 'prohibited-terms-scanner' ),
                 'done'               => __( 'Scan complete.', 'prohibited-terms-scanner' ),

@@ -3,8 +3,9 @@
  * ERI File Library integration
  *
  * Registers ERI File Library's custom post type as scannable locations,
- * only if that plugin is active. Uses ERI's own PostType class to resolve
- * file paths/URLs correctly, respecting its custom folder settings.
+ * supporting both the current standalone plugin (erifl-files, meta key
+ * 'url') and the legacy version bundled inside eri-webtools-plugin
+ * (eri-files, meta key '_post_url'), only if one of them is active.
  */
 
 namespace PluginRx\ProhibitedTermsScanner\Integrations;
@@ -16,6 +17,14 @@ use PluginRx\ProhibitedTermsScanner\ErrorLog;
 if ( ! defined( 'ABSPATH' ) ) exit;
 
 class EriFileLibrary {
+
+
+    /**
+     * Which ERI variant is active: 'new', 'legacy', or 'none'
+     *
+     * @var string|null
+     */
+    private ?string $variant = null;
 
 
     /**
@@ -46,27 +55,110 @@ class EriFileLibrary {
 
 
     /**
-     * Whether ERI File Library is active and its PostType class is available
+     * Detect which ERI File Library variant is active, if any
+     *
+     * @return string|null 'new', 'legacy', or null
+     */
+    private function detect_variant() : ?string {
+        if ( null !== $this->variant ) {
+            return 'none' === $this->variant ? null : $this->variant;
+        }
+
+        if ( class_exists( '\Apos37\EriFileLibrary\PostType' ) ) {
+            $this->variant = 'new';
+
+            return $this->variant;
+        }
+
+        if ( ! function_exists( 'is_plugin_active' ) ) {
+            require_once ABSPATH . 'wp-admin/includes/plugin.php';
+        }
+
+        if ( is_plugin_active( 'eri-webtools-plugin/eri-webtools-plugin.php' ) && 1 === (int) get_option( 'eri_file_manager' ) ) {
+            $this->variant = 'legacy';
+
+            return $this->variant;
+        }
+
+        $this->variant = 'none';
+
+        return null;
+    } // End detect_variant()
+
+
+    /**
+     * Whether any ERI File Library variant is active and usable
      *
      * @return bool
      */
     private function is_available() : bool {
-        return class_exists( '\Apos37\EriFileLibrary\PostType' );
+        return null !== $this->detect_variant();
     } // End is_available()
 
 
     /**
-     * Get an instance of ERI's own PostType class
+     * The post type slug for the active variant
      *
-     * @return object|null
+     * @return string
      */
-    private function eri_post_type() {
-        if ( ! $this->is_available() ) {
-            return null;
+    private function post_type() : string {
+        return 'legacy' === $this->detect_variant() ? 'eri-files' : 'erifl-files';
+    } // End post_type()
+
+
+    /**
+     * The meta key storing the filename for the active variant
+     *
+     * @return string
+     */
+    private function url_meta_key() : string {
+        return 'legacy' === $this->detect_variant() ? '_post_url' : 'url';
+    } // End url_meta_key()
+
+
+    /**
+     * The meta key storing the description for the active variant
+     *
+     * Assumes the legacy plugin follows the same '_post_' prefix pattern
+     * seen in its own migration mapping ('_post_desc' => 'description').
+     * Confirm this matches the actual legacy meta key if results seem off.
+     *
+     * @return string
+     */
+    private function description_meta_key() : string {
+        return 'legacy' === $this->detect_variant() ? '_post_desc' : 'description';
+    } // End description_meta_key()
+
+
+    /**
+     * Get the full file path or URL for a given file post, for either variant
+     *
+     * @param int     $post_id
+     * @param boolean $abspath
+     * @return string|false
+     */
+    private function file_url( $post_id, $abspath = false ) {
+        if ( 'new' === $this->detect_variant() ) {
+            $eri = new \Apos37\EriFileLibrary\PostType();
+
+            return $eri->file_url( $post_id, $abspath );
         }
 
-        return new \Apos37\EriFileLibrary\PostType();
-    } // End eri_post_type()
+        if ( 'legacy' === $this->detect_variant() ) {
+            $filename = get_post_meta( $post_id, $this->url_meta_key(), true );
+
+            if ( ! $filename ) {
+                return false;
+            }
+
+            $uploads_dir = wp_get_upload_dir();
+            $base        = $abspath ? $uploads_dir[ 'basedir' ] : $uploads_dir[ 'baseurl' ];
+
+            return $base . '/eri-files/' . $filename;
+        }
+
+        return false;
+    } // End file_url()
 
 
     /**
@@ -109,7 +201,7 @@ class EriFileLibrary {
 
 
     /**
-     * Get a batch of ERI file post IDs
+     * Get a batch of ERI file post IDs, for whichever variant is active
      *
      * @param int $offset
      * @param int $limit
@@ -117,7 +209,7 @@ class EriFileLibrary {
      */
     private function get_eri_batch( $offset, $limit ) : array {
         $query = new \WP_Query( [
-            'post_type'      => 'erifl-files',
+            'post_type'      => $this->post_type(),
             'post_status'    => 'publish',
             'posts_per_page' => $limit,
             'offset'         => $offset,
@@ -143,14 +235,13 @@ class EriFileLibrary {
         $post_ids = $this->get_eri_batch( $offset, $limit );
         $rows     = [];
         $scanner  = Scanner::instance();
-        $eri      = $this->eri_post_type();
 
         foreach ( $post_ids as $post_id ) {
             if ( Omits::instance()->is_omitted( 'eri_file', $post_id ) ) {
                 continue;
             }
 
-            $filename = get_post_meta( $post_id, $eri->meta_key_url, true );
+            $filename = get_post_meta( $post_id, $this->url_meta_key(), true );
             $matches  = $scanner->match_terms( $filename, $terms );
 
             foreach ( $matches as $match ) {
@@ -174,14 +265,13 @@ class EriFileLibrary {
         $post_ids = $this->get_eri_batch( $offset, $limit );
         $rows     = [];
         $scanner  = Scanner::instance();
-        $eri      = $this->eri_post_type();
 
         foreach ( $post_ids as $post_id ) {
             if ( Omits::instance()->is_omitted( 'eri_file', $post_id ) ) {
                 continue;
             }
 
-            $description = get_post_meta( $post_id, $eri->meta_key_description, true );
+            $description = get_post_meta( $post_id, $this->description_meta_key(), true );
             $matches     = $scanner->match_terms( $description, $terms );
 
             foreach ( $matches as $match ) {
@@ -203,10 +293,9 @@ class EriFileLibrary {
      * @return array
      */
     public function scan_eri_file_contents( $terms, $offset, $limit ) : array {
-        $post_ids = $this->get_eri_batch( $offset, $limit );
-        $rows     = [];
-        $scanner  = Scanner::instance();
-        $eri      = $this->eri_post_type();
+        $post_ids  = $this->get_eri_batch( $offset, $limit );
+        $rows      = [];
+        $scanner   = Scanner::instance();
         $use_pages = \PluginRx\ProhibitedTermsScanner\Settings::instance()->get_pdf_page_lookup();
 
         foreach ( $post_ids as $post_id ) {
@@ -214,7 +303,7 @@ class EriFileLibrary {
                 continue;
             }
 
-            $file_path = $eri->file_url( $post_id, true );
+            $file_path = $this->file_url( $post_id, true );
 
             if ( ! $file_path || ! file_exists( $file_path ) ) {
                 continue;
@@ -286,13 +375,13 @@ class EriFileLibrary {
      * Scan the file's content and display a warning notice directly on the
      * edit screen, every time it's loaded — as long as a filename is saved.
      * Runs on page load rather than on save, so it always reflects current
-     * state and doesn't depend on save-hook timing.
+     * state and doesn't depend on save-hook timing. Works for either variant.
      *
      * @param \WP_Post $post
      * @return void
      */
     public function render_content_warning( $post ) {
-        if ( 'erifl-files' !== $post->post_type ) {
+        if ( ! $this->is_available() || $this->post_type() !== $post->post_type ) {
             return;
         }
 
@@ -308,14 +397,13 @@ class EriFileLibrary {
             return;
         }
 
-        $eri      = $this->eri_post_type();
-        $filename = get_post_meta( $post->ID, $eri->meta_key_url, true );
+        $filename = get_post_meta( $post->ID, $this->url_meta_key(), true );
 
         if ( empty( $filename ) ) {
             return;
         }
 
-        $file_path = $eri->file_url( $post->ID, true );
+        $file_path = $this->file_url( $post->ID, true );
 
         if ( ! $file_path || ! file_exists( $file_path ) ) {
             return;

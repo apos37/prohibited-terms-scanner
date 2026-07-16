@@ -53,6 +53,7 @@ final class Bootstrap {
     public const ADMIN_FILES = [
         'inc/admin-menu.php',
         'inc/import-export.php',
+        'inc/omitted-sources-page.php'
     ];
 
 

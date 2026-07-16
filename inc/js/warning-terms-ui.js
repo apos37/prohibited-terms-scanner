@@ -38,6 +38,18 @@ jQuery( function ( $ ) {
                 this.addFromTextarea();
             } );
 
+            $( document ).on( 'change', '.ptscanner-warning-term-case', ( event ) => {
+                const index = $( event.currentTarget ).closest( '.ptscanner-term-card' ).data( 'index' );
+                this.terms[ index ].case_sensitive = $( event.currentTarget ).is( ':checked' );
+                this.syncHiddenField();
+            } );
+
+            $( document ).on( 'change', '.ptscanner-warning-term-strict', ( event ) => {
+                const index = $( event.currentTarget ).closest( '.ptscanner-term-card' ).data( 'index' );
+                this.terms[ index ].strict = $( event.currentTarget ).is( ':checked' );
+                this.syncHiddenField();
+            } );
+
             $( document ).on( 'click', '.ptscanner-warning-term-remove', ( event ) => {
                 const index = $( event.currentTarget ).closest( '.ptscanner-term-card' ).data( 'index' );
                 this.removeTerm( index );
@@ -130,7 +142,7 @@ jQuery( function ( $ ) {
 
 
         /**
-         * Render the editable term cards (text + remove only, no case/strict toggles)
+         * Render the editable term cards, including case/strict toggles
          */
         renderCards: function () {
             const container = $( '#ptscanner-warning-terms-cards' );
@@ -138,10 +150,18 @@ jQuery( function ( $ ) {
 
             this.terms.forEach( ( termData, index ) => {
                 const card = $( '<div class="ptscanner-term-card" data-index="' + index + '"></div>' );
+
                 const textInput = $( '<input type="text" class="ptscanner-warning-term-text regular-text" />' ).val( termData.term );
+                const caseLabel = $( '<label class="ptscanner-term-flag"></label>' );
+                const caseCheckbox = $( '<input type="checkbox" class="ptscanner-warning-term-case" />' ).prop( 'checked', !! termData.case_sensitive );
+                const strictLabel = $( '<label class="ptscanner-term-flag"></label>' );
+                const strictCheckbox = $( '<input type="checkbox" class="ptscanner-warning-term-strict" />' ).prop( 'checked', !! termData.strict );
                 const removeButton = $( '<button type="button" class="button-link ptscanner-warning-term-remove" aria-label="Remove"></button>' ).text( '×' );
 
-                card.append( textInput, removeButton );
+                caseLabel.append( caseCheckbox ).append( ' ' + ( ptscanner_data.strings.caseSensitiveLabel || 'Case Sensitive' ) );
+                strictLabel.append( strictCheckbox ).append( ' ' + ( ptscanner_data.strings.strictLabel || 'Strict' ) );
+
+                card.append( textInput, caseLabel, strictLabel, removeButton );
                 container.append( card );
             } );
         }, // End renderCards()

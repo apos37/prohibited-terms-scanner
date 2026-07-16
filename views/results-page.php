@@ -79,13 +79,19 @@ $ignored_url = add_query_arg( 'status', 'ignored', $base_url );
                         </td>
                         <td><?php echo esc_html( $row[ 'location_label' ] ); ?></td>
                         <td>
+                            <?php if ( ! empty( $row[ 'source_title' ] ) ) : ?>
+                                <strong><?php echo esc_html( $row[ 'source_title' ] ); ?></strong><br>
+                            <?php endif; ?>
                             <?php if ( ! empty( $row[ 'highlight_link' ] ) ) : ?>
                                 <a href="<?php echo esc_url( $row[ 'highlight_link' ] ); ?>" target="_blank">
                                     <?php esc_html_e( 'View', 'prohibited-terms-scanner' ); ?>
-                                </a>
+                                </a> |
                             <?php else : ?>
                                 &mdash;
                             <?php endif; ?>
+                            <a href="#" class="ptscanner-toggle-omit" data-id="<?php echo esc_attr( $row[ 'source_id' ] ); ?>" data-type="<?php echo esc_attr( $row[ 'source_type' ] ); ?>" data-omitted="0">
+                                <?php esc_html_e( 'Omit', 'prohibited-terms-scanner' ); ?>
+                            </a>
                         </td>
                         <td><?php echo esc_html( mysql2date( 'Y-m-d H:i', $row[ 'created_at' ] ) ); ?></td>
                         <td class="ptscanner-row-actions">

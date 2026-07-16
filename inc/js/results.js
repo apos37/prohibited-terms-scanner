@@ -142,6 +142,47 @@ jQuery( function ( $ ) {
                     alert( ptscanner_data.strings.requestFailed || 'Request failed.' );
                 } );
             } );
+
+            $( document ).on( 'click', '.ptscanner-remove-omit', ( event ) => {
+                const button = $( event.currentTarget );
+                const row = button.closest( 'tr' );
+
+                $.post( ptscanner_data.ajaxUrl, {
+                    action: 'ptscanner_toggle_omit',
+                    nonce: ptscanner_data.nonce,
+                    id: button.data( 'id' ),
+                    type: button.data( 'type' ),
+                    omit: '0',
+                } ).done( ( response ) => {
+                    if ( response.success ) {
+                        row.fadeOut( 200, () => row.remove() );
+                    } else {
+                        alert( response.data.message || 'Could not remove.' );
+                    }
+                } );
+            } );
+
+            $( document ).on( 'click', '.ptscanner-toggle-omit', ( event ) => {
+                event.preventDefault();
+
+                const link = $( event.currentTarget );
+                const isOmitted = '1' === link.data( 'omitted' );
+
+                $.post( ptscanner_data.ajaxUrl, {
+                    action: 'ptscanner_toggle_omit',
+                    nonce: ptscanner_data.nonce,
+                    id: link.data( 'id' ),
+                    type: link.data( 'type' ),
+                    omit: isOmitted ? '0' : '1',
+                } ).done( ( response ) => {
+                    if ( response.success ) {
+                        link.data( 'omitted', isOmitted ? '0' : '1' );
+                        link.text( isOmitted ? 'Omit' : 'Unomit' );
+                    } else {
+                        alert( response.data.message || 'Could not update.' );
+                    }
+                } );
+            } );
         }, // End bindEvents()
 
 
@@ -269,11 +310,17 @@ jQuery( function ( $ ) {
             tr.append( $( '<td></td>' ).text( row.location_label ) );
 
             const sourceCell = $( '<td></td>' );
+
+            if ( row.source_title ) {
+                sourceCell.append( $( '<strong></strong>' ).text( row.source_title ) ).append( $( '<br>' ) );
+            }
+
             if ( row.highlight_link ) {
                 sourceCell.append( $( '<a target="_blank"></a>' ).attr( 'href', row.highlight_link ).text( 'View' ) );
             } else {
-                sourceCell.text( '—' );
+                sourceCell.text( sourceCell.text() + '—' );
             }
+
             tr.append( sourceCell );
 
             tr.append( $( '<td></td>' ).text( row.created_at ) );
