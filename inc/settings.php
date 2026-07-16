@@ -63,6 +63,48 @@ class Settings {
 
 
     /**
+     * Post types that manage their own dedicated scan location types (like
+     * ERI File Library) and so are excluded from the generic post-type
+     * scan list only — they still get their own Omit action, just under a
+     * different internal type key (handled by resolve_omit_type()).
+     *
+     * @return array
+     */
+    public function get_integration_managed_post_types() : array {
+        $excluded = [ 'erifl-files', 'eri-files' ];
+
+        /**
+         * Filter post types that are scanned via a dedicated integration
+         * rather than the generic title/content/excerpt scanners.
+         *
+         * @param array $post_types Post type slugs.
+         */
+        return apply_filters( 'ptscanner_integration_managed_post_types', $excluded );
+    } // End get_integration_managed_post_types()
+
+
+    /**
+     * Post types fully excluded from Settings' post type list AND from the
+     * Omit row action / bulk actions entirely — for post types that
+     * shouldn't be scanned or omitted at all (e.g. non-content post types
+     * used internally by other plugins).
+     *
+     * @return array
+     */
+    public function get_excluded_post_types() : array {
+        $excluded = [ 'help-doc-imports', 'help-docs', 'x-portfolio', 'mailpoet_page' ];
+
+        /**
+         * Filter the list of post type slugs fully excluded from scanning,
+         * Settings, and the Omit action.
+         *
+         * @param array $excluded Post type slugs to exclude.
+         */
+        return apply_filters( 'ptscanner_excluded_post_types', $excluded );
+    } // End get_excluded_post_types()
+
+
+    /**
      * Get the nonce action name
      *
      * @return string
@@ -206,7 +248,10 @@ class Settings {
         $saved = get_option( self::OPT_POST_TYPES, null );
 
         if ( null === $saved ) {
-            return array_values( get_post_types( [ 'public' => true ], 'names' ) );
+            $all_public = get_post_types( [ 'public' => true ], 'names' );
+            $to_remove  = array_merge( $this->get_integration_managed_post_types(), $this->get_excluded_post_types() );
+
+            return array_values( array_diff( $all_public, $to_remove ) );
         }
 
         return is_array( $saved ) ? $saved : [];

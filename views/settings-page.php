@@ -58,7 +58,13 @@ $ptscanner_warning_terms     = $ptscanner_settings->get_warning_terms();
             <p class="description"><?php esc_html_e( 'Choose which public post types are included when scanning content.', 'prohibited-terms-scanner' ); ?></p>
 
             <?php foreach ( $ptscanner_post_types as $ptscanner_post_type ) : ?>
-                <?php if ( in_array( $ptscanner_post_type->name, [ 'erifl-files', 'eri-files' ], true ) ) : continue; endif; ?>
+                <?php
+                $ptscanner_hidden_types = array_merge(
+                    $ptscanner_settings->get_integration_managed_post_types(),
+                    $ptscanner_settings->get_excluded_post_types()
+                );
+                if ( in_array( $ptscanner_post_type->name, $ptscanner_hidden_types, true ) ) : continue; endif;
+                ?>
                 <label class="ptscanner-type-checkbox">
                     <input type="checkbox" name="post_types[]" value="<?php echo esc_attr( $ptscanner_post_type->name ); ?>"
                         <?php checked( in_array( $ptscanner_post_type->name, $ptscanner_enabled_post_types, true ) ); ?>>

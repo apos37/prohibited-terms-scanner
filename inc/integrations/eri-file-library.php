@@ -177,7 +177,7 @@ class EriFileLibrary {
             'group'           => 'files',
             'source_callback' => [ $this, 'scan_eri_titles' ],
             'link_callback'   => [ $this, 'link_eri_file' ],
-            'default_enabled' => true,
+            'default_enabled' => false,
         ];
 
         $types[ 'eri_filename' ] = [
@@ -185,7 +185,7 @@ class EriFileLibrary {
             'group'           => 'files',
             'source_callback' => [ $this, 'scan_eri_filenames' ],
             'link_callback'   => [ $this, 'link_eri_file' ],
-            'default_enabled' => true,
+            'default_enabled' => false,
         ];
 
         $types[ 'eri_description' ] = [
@@ -193,7 +193,7 @@ class EriFileLibrary {
             'group'           => 'files',
             'source_callback' => [ $this, 'scan_eri_descriptions' ],
             'link_callback'   => [ $this, 'link_eri_file' ],
-            'default_enabled' => true,
+            'default_enabled' => false,
         ];
 
         $types[ 'eri_file_content' ] = [

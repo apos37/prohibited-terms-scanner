@@ -93,7 +93,7 @@ $ptscanner_ignored_url = add_query_arg( 'status', 'ignored', $ptscanner_base_url
                                 <?php esc_html_e( 'Omit', 'prohibited-terms-scanner' ); ?>
                             </a>
                         </td>
-                        <td><?php echo esc_html( mysql2date( 'Y-m-d H:i', $ptscanner_row[ 'created_at' ] ) ); ?></td>
+                        <td><?php echo esc_html( mysql2date( 'Y-m-d g:i A', $ptscanner_row[ 'created_at' ] ) ); ?></td>
                         <td class="ptscanner-row-actions">
                             <?php if ( 'flagged' === $ptscanner_row[ 'status' ] ) : ?>
                                 <button type="button" class="button-link ptscanner-mark-ok" data-id="<?php echo absint( $ptscanner_row[ 'id' ] ); ?>">

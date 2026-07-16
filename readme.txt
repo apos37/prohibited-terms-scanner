@@ -84,26 +84,30 @@ No. It warns you that a monitored term was found so you can double check before 
 
 == Changelog ==
 
+= 1.2.2 = // TODO:
+* Tweak: Changed results time to AM/PM instead of military time
+* Update: Added excluded post types filters
+
 = 1.2.1 =
-* Fixed a missing Location column in the Results page table that caused Source, Date, and Actions to misalign
-* Fixed shortcode output leaking into AJAX scan responses on certain sites, corrupting batch results
-* Fixed batch failures during a scan skipping the rest of that location type instead of continuing
-* Improved scan error messages to be more descriptive and human-readable, including which shortcode tag was involved when applicable
-* Fixed HTML entities (e.g. "&amp;") displaying incorrectly in source titles on the front-end results table
-* Various Plugin Check compliance fixes (input sanitization, output escaping, direct database call annotations, global variable prefixing)
+* Fix: Missing Location column in the Results page table that caused Source, Date, and Actions to misalign
+* Fix: Shortcode output leaking into AJAX scan responses on certain sites, corrupting batch results
+* Fix: Batch failures during a scan skipping the rest of that location type instead of continuing
+* Tweak: Improved scan error messages to be more descriptive and human-readable, including which shortcode tag was involved when applicable
+* Fix: HTML entities (e.g. "&amp;") displaying incorrectly in source titles on the front-end results table
+* Fix: Various Plugin Check compliance fixes (input sanitization, output escaping, direct database call annotations, global variable prefixing)
 
 = 1.2.0 =
-* Added an Omitted Sources system: omit posts, pages, media, or files from all future scans, via the Results page or list table quick/bulk actions
-* Added source titles to the results table
-* Added a Clear All action for results and for term lists
-* Added collapsible term list accordions that auto-collapse when terms already exist
-* Various bug fixes from real-world testing
+* Update: Added an Omitted Sources system: omit posts, pages, media, or files from all future scans, via the Results page or list table quick/bulk actions
+* Tweak: Added source titles to the results table
+* Update: Added a Clear All action for results and for term lists
+* Tweak: Added collapsible term list accordions that auto-collapse when terms already exist
+* Fix: Various bug fixes from real-world testing
 
 = 1.1.0 =
-* Added file content scanning for PDF and Word (.docx) documents
-* Added ERI File Library integration (titles, filenames, descriptions, and file content)
-* Added a results counter badge on the admin menu
-* Added optional scheduled (cron) scanning with status display
+* Update: Added file content scanning for PDF and Word (.docx) documents
+* Update: Added ERI File Library integration (titles, filenames, descriptions, and file content)
+* Update: Added a results counter badge on the admin menu
+* Update: Added optional scheduled (cron) scanning with status display
 
 = 1.0.0 =
 * Initial release

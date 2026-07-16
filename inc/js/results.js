@@ -346,7 +346,7 @@ jQuery( function ( $ ) {
 
             tr.append( sourceCell );
 
-            tr.append( $( '<td></td>' ).text( row.created_at ) );
+            tr.append( $( '<td></td>' ).text( this.formatDate( row.created_at ) ) );
 
             const actionsCell = $( '<td></td>' );
             if ( 'flagged' === row.status ) {
@@ -360,6 +360,41 @@ jQuery( function ( $ ) {
 
             return tr;
         }, // End buildRow()
+
+
+        /**
+         * Format a MySQL datetime string (e.g. "2026-07-16 14:30:00") into
+         * a readable 12-hour date/time string, matching the admin table's format
+         *
+         * @param {string} mysqlDatetime
+         * @return {string}
+         */
+        formatDate: function ( mysqlDatetime ) {
+            if ( ! mysqlDatetime ) {
+                return '';
+            }
+
+            const parts = mysqlDatetime.split( /[- :]/ );
+
+            if ( parts.length < 5 ) {
+                return mysqlDatetime;
+            }
+
+            const date = new Date( parts[ 0 ], parts[ 1 ] - 1, parts[ 2 ], parts[ 3 ], parts[ 4 ] );
+
+            const year = date.getFullYear();
+            const month = String( date.getMonth() + 1 ).padStart( 2, '0' );
+            const day = String( date.getDate() ).padStart( 2, '0' );
+
+            let hours = date.getHours();
+            const minutes = String( date.getMinutes() ).padStart( 2, '0' );
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+
+            hours = hours % 12;
+            hours = hours ? hours : 12;
+
+            return year + '-' + month + '-' + day + ' ' + hours + ':' + minutes + ' ' + ampm;
+        }, // End formatDate()
 
 
         /**

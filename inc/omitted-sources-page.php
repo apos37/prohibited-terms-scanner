@@ -62,6 +62,8 @@ class OmittedSourcesPage {
      */
     public function register_bulk_actions_for_public_post_types() {
         $post_types = get_post_types( [ 'public' => true ], 'names' );
+        $excluded   = Settings::instance()->get_excluded_post_types();
+        $post_types = array_diff( $post_types, $excluded );
 
         foreach ( $post_types as $post_type ) {
             add_filter( 'bulk_actions-edit-' . $post_type, [ $this, 'add_bulk_actions' ] );
@@ -82,8 +84,11 @@ class OmittedSourcesPage {
             return $actions;
         }
 
-        $type = $this->resolve_omit_type( $post->post_type );
+        if ( in_array( $post->post_type, Settings::instance()->get_excluded_post_types(), true ) ) {
+            return $actions;
+        }
 
+        $type       = $this->resolve_omit_type( $post->post_type );
         $is_omitted = Omits::instance()->is_omitted( $type, $post->ID );
         $label      = $is_omitted
             ? __( 'Unignore from Terms Scanner', 'prohibited-terms-scanner' )
