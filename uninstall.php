@@ -50,23 +50,23 @@ function ptscanner_uninstall_option_keys() : array {
 function ptscanner_uninstall_single_site() {
     global $wpdb;
 
-    $table_name = $wpdb->prefix . 'ptscanner_results';
+    $table_name = esc_sql( $wpdb->prefix . 'ptscanner_results' );
 
-    $wpdb->query( "DROP TABLE IF EXISTS {$table_name}" ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+    $wpdb->query( "DROP TABLE IF EXISTS {$table_name}" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching, WordPress.DB.DirectDatabaseQuery.SchemaChange
 
     foreach ( ptscanner_uninstall_option_keys() as $option_key ) {
         delete_option( $option_key );
     }
 
-     wp_clear_scheduled_hook( 'ptscanner_scheduled_scan' );
+    wp_clear_scheduled_hook( 'ptscanner_scheduled_scan' );
 } // End ptscanner_uninstall_single_site()
 
 
 if ( is_multisite() ) {
-    $site_ids = get_sites( [ 'fields' => 'ids' ] );
+    $ptscanner_site_ids = get_sites( [ 'fields' => 'ids' ] );
 
-    foreach ( $site_ids as $site_id ) {
-        switch_to_blog( $site_id );
+    foreach ( $ptscanner_site_ids as $ptscanner_site_id ) {
+        switch_to_blog( $ptscanner_site_id );
         ptscanner_uninstall_single_site();
         restore_current_blog();
     }

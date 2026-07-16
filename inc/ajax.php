@@ -50,7 +50,7 @@ class Ajax {
         // hooks running later (e.g. on admin_init, before our AJAX handler
         // even runs) gets captured and discarded rather than corrupting
         // our JSON response.
-        if ( wp_doing_ajax() && isset( $_POST[ 'action' ] ) && 0 === strpos( wp_unslash( $_POST[ 'action' ] ), 'ptscanner_' ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
+        if ( wp_doing_ajax() && isset( $_POST[ 'action' ] ) && 0 === strpos( sanitize_key( wp_unslash( $_POST[ 'action' ] ) ), 'ptscanner_' ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Missing
             ob_start();
         }
     } // End __construct()
@@ -134,7 +134,8 @@ class Ajax {
             return;
         }
 
-        $raw = isset( $_POST[ 'terms' ] ) ? wp_unslash( $_POST[ 'terms' ] ) : '';
+        $raw     = isset( $_POST[ 'terms' ] ) ? wp_unslash( $_POST[ 'terms' ] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+        $raw     = is_string( $raw ) ? $raw : '';
         $decoded = json_decode( $raw, true );
 
         if ( ! is_array( $decoded ) ) {
@@ -165,7 +166,7 @@ class Ajax {
 
         $location_type  = isset( $_POST[ 'location_type' ] ) ? sanitize_key( wp_unslash( $_POST[ 'location_type' ] ) ) : '';
         $offset         = isset( $_POST[ 'offset' ] ) ? absint( wp_unslash( $_POST[ 'offset' ] ) ) : 0;
-        $is_first_batch = isset( $_POST[ 'is_first_batch' ] ) && 'true' === wp_unslash( $_POST[ 'is_first_batch' ] );
+        $is_first_batch = isset( $_POST[ 'is_first_batch' ] ) && 'true' === sanitize_text_field( wp_unslash( $_POST[ 'is_first_batch' ] ) );
 
         if ( '' === $location_type ) {
             $this->send_error( [ 'message' => __( 'Missing location type.', 'prohibited-terms-scanner' ) ] );

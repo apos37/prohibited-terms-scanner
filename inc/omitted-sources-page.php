@@ -169,7 +169,7 @@ class OmittedSourcesPage {
 
         $id   = isset( $_POST[ 'id' ] ) ? absint( wp_unslash( $_POST[ 'id' ] ) ) : 0;
         $type = isset( $_POST[ 'type' ] ) ? sanitize_key( wp_unslash( $_POST[ 'type' ] ) ) : '';
-        $omit = isset( $_POST[ 'omit' ] ) && '1' === wp_unslash( $_POST[ 'omit' ] );
+        $omit = isset( $_POST[ 'omit' ] ) && '1' === sanitize_text_field( wp_unslash( $_POST[ 'omit' ] ) );
 
         if ( ! $id || '' === $type ) {
             wp_send_json_error( [ 'message' => __( 'Invalid request.', 'prohibited-terms-scanner' ) ] );
@@ -205,7 +205,7 @@ class OmittedSourcesPage {
 
         $ids  = isset( $_POST[ 'ids' ] ) ? array_map( 'absint', (array) wp_unslash( $_POST[ 'ids' ] ) ) : [];
         $type = isset( $_POST[ 'type' ] ) ? sanitize_key( wp_unslash( $_POST[ 'type' ] ) ) : '';
-        $omit = isset( $_POST[ 'omit' ] ) && '1' === wp_unslash( $_POST[ 'omit' ] );
+        $omit = isset( $_POST[ 'omit' ] ) && '1' === sanitize_text_field( wp_unslash( $_POST[ 'omit' ] ) );
 
         if ( empty( $ids ) || '' === $type ) {
             wp_send_json_error( [ 'message' => __( 'Invalid request.', 'prohibited-terms-scanner' ) ] );

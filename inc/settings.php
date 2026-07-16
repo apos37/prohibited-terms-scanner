@@ -322,7 +322,8 @@ class Settings {
         update_option( self::OPT_PDF_PAGE_LOOKUP, isset( $_POST[ 'pdf_page_lookup' ] ), false );
 
         if ( isset( $_POST[ 'warning_terms_json' ] ) ) {
-            $raw_json = wp_unslash( $_POST[ 'warning_terms_json' ] );
+            $raw_json = wp_unslash( $_POST[ 'warning_terms_json' ] ); // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+            $raw_json = is_string( $raw_json ) ? $raw_json : '';
             $decoded  = json_decode( $raw_json, true );
 
             if ( is_array( $decoded ) ) {

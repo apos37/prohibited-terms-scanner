@@ -125,11 +125,11 @@ class DB {
     public function wipe_flagged() {
         global $wpdb;
 
-        $table_name = $this->table();
+        $table_name = esc_sql( $this->table() );
 
-        $wpdb->query(
+        $wpdb->query( // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
             $wpdb->prepare(
-                "DELETE FROM {$table_name} WHERE status = %s",
+                "DELETE FROM {$table_name} WHERE status = %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
                 'flagged'
             )
         );
@@ -147,11 +147,11 @@ class DB {
     public function get_match_hashes( $status = 'ignored' ) : array {
         global $wpdb;
 
-        $table_name = $this->table();
+        $table_name = esc_sql( $this->table() );
 
-        $hashes = $wpdb->get_col(
+        $hashes = $wpdb->get_col( // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
             $wpdb->prepare(
-                "SELECT match_hash FROM {$table_name} WHERE status = %s",
+                "SELECT match_hash FROM {$table_name} WHERE status = %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
                 $status
             )
         );
@@ -172,7 +172,7 @@ class DB {
         $table_name = $this->table();
         $now        = current_time( 'mysql' );
 
-        $inserted = $wpdb->insert(
+        $inserted = $wpdb->insert( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery
             $table_name,
             [
                 'term'             => $args[ 'term' ],
@@ -209,7 +209,7 @@ class DB {
 
         $table_name = $this->table();
 
-        $updated = $wpdb->update(
+        $updated = $wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
             $table_name,
             [
                 'status'     => sanitize_key( $status ),
@@ -237,7 +237,7 @@ class DB {
 
         $table_name = $this->table();
 
-        $deleted = $wpdb->delete(
+        $deleted = $wpdb->delete( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
             $table_name,
             [ 'id' => absint( $id ) ],
             [ '%d' ]
@@ -258,11 +258,11 @@ class DB {
     public function delete_all_by_status( $status ) : int {
         global $wpdb;
 
-        $table_name = $this->table();
+        $table_name = esc_sql( $this->table() );
 
-        $deleted = $wpdb->query(
+        $deleted = $wpdb->query( // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
             $wpdb->prepare(
-                "DELETE FROM {$table_name} WHERE status = %s",
+                "DELETE FROM {$table_name} WHERE status = %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
                 $status
             )
         );
@@ -284,11 +284,11 @@ class DB {
     public function delete_by_source( $source_type, $source_id ) : int {
         global $wpdb;
 
-        $table_name = $this->table();
+        $table_name = esc_sql( $this->table() );
 
-        $deleted = $wpdb->query(
+        $deleted = $wpdb->query( // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
             $wpdb->prepare(
-                "DELETE FROM {$table_name} WHERE source_type = %s AND source_id = %d AND status = %s",
+                "DELETE FROM {$table_name} WHERE source_type = %s AND source_id = %d AND status = %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
                 $source_type,
                 $source_id,
                 'flagged'
@@ -309,11 +309,11 @@ class DB {
     public function get_flagged_summary() : array {
         global $wpdb;
 
-        $table_name = $this->table();
+        $table_name = esc_sql( $this->table() );
 
-        $rows = $wpdb->get_results(
+        $rows = $wpdb->get_results( // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
             $wpdb->prepare(
-                "SELECT term, COUNT(*) as count FROM {$table_name} WHERE status = %s GROUP BY term_hash, term ORDER BY count DESC",
+                "SELECT term, COUNT(*) as count FROM {$table_name} WHERE status = %s GROUP BY term_hash, term ORDER BY count DESC", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
                 'flagged'
             ),
             ARRAY_A
@@ -338,11 +338,11 @@ class DB {
 
         global $wpdb;
 
-        $table_name = $this->table();
+        $table_name = esc_sql( $this->table() );
 
-        $count = (int) $wpdb->get_var(
+        $count = (int) $wpdb->get_var( // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
             $wpdb->prepare(
-                "SELECT COUNT(*) FROM {$table_name} WHERE status = %s",
+                "SELECT COUNT(*) FROM {$table_name} WHERE status = %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
                 'flagged'
             )
         );

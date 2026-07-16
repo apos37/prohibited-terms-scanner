@@ -237,8 +237,8 @@ class Scanner {
      * @return string
      */
     private function safe_do_shortcode( $content, $post_id ) : string {
-        $previous_handler = set_error_handler( function ( $errno, $errstr ) {
-            throw new \ErrorException( $errstr, 0, $errno );
+        $previous_handler = set_error_handler( function ( $errno, $errstr ) { // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_set_error_handler
+            throw new \ErrorException( esc_html( $errstr ), 0, absint( $errno ) );
         } );
 
         // Buffer locally around the shortcode expansion itself, since some

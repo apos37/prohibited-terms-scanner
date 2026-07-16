@@ -7,7 +7,7 @@ namespace PluginRx\ProhibitedTermsScanner;
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-$omits = Omits::instance()->get_list();
+$ptscanner_omits = Omits::instance()->get_list();
 ?>
 <div class="wrap ptscanner-wrap ptscanner-omitted-page">
     <header class="ptscanner-header">
@@ -24,15 +24,15 @@ $omits = Omits::instance()->get_list();
             </tr>
         </thead>
         <tbody id="ptscanner-omitted-body">
-            <?php if ( empty( $omits ) ) : ?>
+            <?php if ( empty( $ptscanner_omits ) ) : ?>
                 <tr><td colspan="3"><?php esc_html_e( 'No omitted sources.', 'prohibited-terms-scanner' ); ?></td></tr>
             <?php else : ?>
-                <?php foreach ( $omits as $entry ) : ?>
-                    <tr data-id="<?php echo esc_attr( $entry[ 'id' ] ); ?>" data-type="<?php echo esc_attr( $entry[ 'type' ] ); ?>">
-                        <td><?php echo esc_html( $entry[ 'label' ] ?: '#' . $entry[ 'id' ] ); ?></td>
-                        <td><?php echo esc_html( ucwords( str_replace( '_', ' ', $entry[ 'type' ] ) ) ); ?></td>
+                <?php foreach ( $ptscanner_omits as $ptscanner_entry ) : ?>
+                    <tr data-id="<?php echo esc_attr( $ptscanner_entry[ 'id' ] ); ?>" data-type="<?php echo esc_attr( $ptscanner_entry[ 'type' ] ); ?>">
+                        <td><?php echo esc_html( $ptscanner_entry[ 'label' ] ?: '#' . $ptscanner_entry[ 'id' ] ); ?></td>
+                        <td><?php echo esc_html( ucwords( str_replace( '_', ' ', $ptscanner_entry[ 'type' ] ) ) ); ?></td>
                         <td>
-                            <button type="button" class="button-link ptscanner-remove-omit" data-id="<?php echo esc_attr( $entry[ 'id' ] ); ?>" data-type="<?php echo esc_attr( $entry[ 'type' ] ); ?>">
+                            <button type="button" class="button-link ptscanner-remove-omit" data-id="<?php echo esc_attr( $ptscanner_entry[ 'id' ] ); ?>" data-type="<?php echo esc_attr( $ptscanner_entry[ 'type' ] ); ?>">
                                 <?php esc_html_e( 'Remove', 'prohibited-terms-scanner' ); ?>
                             </button>
                         </td>

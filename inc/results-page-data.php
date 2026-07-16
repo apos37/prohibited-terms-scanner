@@ -52,19 +52,19 @@ class ResultsPageData {
     public function get_page( $status, $page ) : array {
         global $wpdb;
 
-        $table_name = DB::instance()->table();
+        $table_name = esc_sql( DB::instance()->table() );
         $offset     = ( max( 1, $page ) - 1 ) * $this->per_page;
 
-        $total = (int) $wpdb->get_var(
+        $total = (int) $wpdb->get_var( // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
             $wpdb->prepare(
-                "SELECT COUNT(*) FROM {$table_name} WHERE status = %s",
+                "SELECT COUNT(*) FROM {$table_name} WHERE status = %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
                 $status
             )
         );
 
-        $rows = $wpdb->get_results(
+        $rows = $wpdb->get_results( // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
             $wpdb->prepare(
-                "SELECT * FROM {$table_name} WHERE status = %s ORDER BY created_at DESC LIMIT %d OFFSET %d",
+                "SELECT * FROM {$table_name} WHERE status = %s ORDER BY created_at DESC LIMIT %d OFFSET %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
                 $status,
                 $this->per_page,
                 $offset

@@ -4,6 +4,7 @@
 # PHP-Scoper build artifacts — not needed once vendor/ is finalized and committed
 /vendor-scoped/
 /.php-scoper.cache/
+/scoper.inc.php
 
 # OS/editor junk
 .DS_Store

@@ -4,7 +4,7 @@ Tags: content moderation, search, compliance, media library, scanner
 Requires at least: 6.0
 Tested up to: 7.0
 Requires PHP: 7.4
-Stable tag: 1.2.0
+Stable tag: 1.2.1
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.txt
 
@@ -83,6 +83,14 @@ No. It warns you that a monitored term was found so you can double check before 
 4. Settings page with search locations, post types, and performance options
 
 == Changelog ==
+
+= 1.2.1 =
+* Fixed a missing Location column in the Results page table that caused Source, Date, and Actions to misalign
+* Fixed shortcode output leaking into AJAX scan responses on certain sites, corrupting batch results
+* Fixed batch failures during a scan skipping the rest of that location type instead of continuing
+* Improved scan error messages to be more descriptive and human-readable, including which shortcode tag was involved when applicable
+* Fixed HTML entities (e.g. "&amp;") displaying incorrectly in source titles on the front-end results table
+* Various Plugin Check compliance fixes (input sanitization, output escaping, direct database call annotations, global variable prefixing)
 
 = 1.2.0 =
 * Added an Omitted Sources system: omit posts, pages, media, or files from all future scans, via the Results page or list table quick/bulk actions

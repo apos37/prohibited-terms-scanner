@@ -11,16 +11,16 @@ namespace PluginRx\ProhibitedTermsScanner;
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-$textdomain  = Bootstrap::textdomain();
-$base_url    = admin_url( 'admin.php?page=' . $textdomain . '_results' );
-$flagged_url = add_query_arg( 'status', 'flagged', $base_url );
-$ignored_url = add_query_arg( 'status', 'ignored', $base_url );
+$ptscanner_textdomain  = Bootstrap::textdomain();
+$ptscanner_base_url    = admin_url( 'admin.php?page=' . $ptscanner_textdomain . '_results' );
+$ptscanner_flagged_url = add_query_arg( 'status', 'flagged', $ptscanner_base_url );
+$ptscanner_ignored_url = add_query_arg( 'status', 'ignored', $ptscanner_base_url );
 ?>
 <div class="wrap ptscanner-wrap ptscanner-results-page">
     <header class="ptscanner-header">
         <h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
         <p>
-            <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $textdomain ) ); ?>">
+            <a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $ptscanner_textdomain ) ); ?>">
                 &larr; <?php esc_html_e( 'Back to Scanner', 'prohibited-terms-scanner' ); ?>
             </a>
         </p>
@@ -29,12 +29,12 @@ $ignored_url = add_query_arg( 'status', 'ignored', $base_url );
     <div class="ptscanner-clear-all-wrap">
         <ul class="subsubsub">
             <li>
-                <a href="<?php echo esc_url( $flagged_url ); ?>" class="<?php echo 'flagged' === $status ? 'current' : ''; ?>">
+                <a href="<?php echo esc_url( $ptscanner_flagged_url ); ?>" class="<?php echo 'flagged' === $status ? 'current' : ''; ?>">
                     <?php esc_html_e( 'Flagged', 'prohibited-terms-scanner' ); ?>
                 </a> |
             </li>
             <li>
-                <a href="<?php echo esc_url( $ignored_url ); ?>" class="<?php echo 'ignored' === $status ? 'current' : ''; ?>">
+                <a href="<?php echo esc_url( $ptscanner_ignored_url ); ?>" class="<?php echo 'ignored' === $status ? 'current' : ''; ?>">
                     <?php esc_html_e( 'Marked as OK', 'prohibited-terms-scanner' ); ?>
                 </a>
             </li>
@@ -64,47 +64,47 @@ $ignored_url = add_query_arg( 'status', 'ignored', $base_url );
                     <td colspan="6"><?php esc_html_e( 'No results found.', 'prohibited-terms-scanner' ); ?></td>
                 </tr>
             <?php else : ?>
-                <?php foreach ( $data[ 'rows' ] as $row ) : ?>
-                    <tr id="ptscanner-row-<?php echo absint( $row[ 'id' ] ); ?>" data-id="<?php echo absint( $row[ 'id' ] ); ?>">
-                        <td><strong><?php echo esc_html( $row[ 'term' ] ); ?></strong></td>
-                        <td><?php echo wp_kses( $row[ 'context_highlighted' ], [ 'strong' => [ 'class' => [] ] ] ); ?><?php if ( ! empty( $row[ 'file_page' ] ) ) : ?>
+                <?php foreach ( $data[ 'rows' ] as $ptscanner_row ) : ?>
+                    <tr id="ptscanner-row-<?php echo absint( $ptscanner_row[ 'id' ] ); ?>" data-id="<?php echo absint( $ptscanner_row[ 'id' ] ); ?>">
+                        <td><strong><?php echo esc_html( $ptscanner_row[ 'term' ] ); ?></strong></td>
+                        <td><?php echo wp_kses( $ptscanner_row[ 'context_highlighted' ], [ 'strong' => [ 'class' => [] ] ] ); ?><?php if ( ! empty( $ptscanner_row[ 'file_page' ] ) ) : ?>
                                 <br><em><?php
                                     printf(
                                         /* translators: %d: file page number */
                                         esc_html__( 'Page %d', 'prohibited-terms-scanner' ),
-                                        absint( $row[ 'file_page' ] )
+                                        absint( $ptscanner_row[ 'file_page' ] )
                                     );
                                 ?></em>
                             <?php endif; ?>
                         </td>
-                        <td><?php echo esc_html( $row[ 'location_label' ] ); ?></td>
+                        <td><?php echo esc_html( $ptscanner_row[ 'location_label' ] ); ?></td>
                         <td>
-                            <?php if ( ! empty( $row[ 'source_title' ] ) ) : ?>
-                                <strong><?php echo esc_html( $row[ 'source_title' ] ); ?></strong><br>
+                            <?php if ( ! empty( $ptscanner_row[ 'source_title' ] ) ) : ?>
+                                <strong><?php echo esc_html( $ptscanner_row[ 'source_title' ] ); ?></strong><br>
                             <?php endif; ?>
-                            <?php if ( ! empty( $row[ 'highlight_link' ] ) ) : ?>
-                                <a href="<?php echo esc_url( $row[ 'highlight_link' ] ); ?>" target="_blank">
+                            <?php if ( ! empty( $ptscanner_row[ 'highlight_link' ] ) ) : ?>
+                                <a href="<?php echo esc_url( $ptscanner_row[ 'highlight_link' ] ); ?>" target="_blank">
                                     <?php esc_html_e( 'View', 'prohibited-terms-scanner' ); ?>
                                 </a> |
                             <?php else : ?>
                                 &mdash;
                             <?php endif; ?>
-                            <a href="#" class="ptscanner-toggle-omit" data-id="<?php echo esc_attr( $row[ 'source_id' ] ); ?>" data-type="<?php echo esc_attr( $row[ 'source_type' ] ); ?>" data-omitted="0">
+                            <a href="#" class="ptscanner-toggle-omit" data-id="<?php echo esc_attr( $ptscanner_row[ 'source_id' ] ); ?>" data-type="<?php echo esc_attr( $ptscanner_row[ 'source_type' ] ); ?>" data-omitted="0">
                                 <?php esc_html_e( 'Omit', 'prohibited-terms-scanner' ); ?>
                             </a>
                         </td>
-                        <td><?php echo esc_html( mysql2date( 'Y-m-d H:i', $row[ 'created_at' ] ) ); ?></td>
+                        <td><?php echo esc_html( mysql2date( 'Y-m-d H:i', $ptscanner_row[ 'created_at' ] ) ); ?></td>
                         <td class="ptscanner-row-actions">
-                            <?php if ( 'flagged' === $row[ 'status' ] ) : ?>
-                                <button type="button" class="button-link ptscanner-mark-ok" data-id="<?php echo absint( $row[ 'id' ] ); ?>">
+                            <?php if ( 'flagged' === $ptscanner_row[ 'status' ] ) : ?>
+                                <button type="button" class="button-link ptscanner-mark-ok" data-id="<?php echo absint( $ptscanner_row[ 'id' ] ); ?>">
                                     <?php esc_html_e( 'Mark as OK', 'prohibited-terms-scanner' ); ?>
                                 </button>
                             <?php else : ?>
-                                <button type="button" class="button-link ptscanner-mark-flagged" data-id="<?php echo absint( $row[ 'id' ] ); ?>">
+                                <button type="button" class="button-link ptscanner-mark-flagged" data-id="<?php echo absint( $ptscanner_row[ 'id' ] ); ?>">
                                     <?php esc_html_e( 'Unignore', 'prohibited-terms-scanner' ); ?>
                                 </button>
                             <?php endif; ?>
-                            <button type="button" class="button-link ptscanner-clear-result" data-id="<?php echo absint( $row[ 'id' ] ); ?>">
+                            <button type="button" class="button-link ptscanner-clear-result" data-id="<?php echo absint( $ptscanner_row[ 'id' ] ); ?>">
                                 <?php esc_html_e( 'Clear', 'prohibited-terms-scanner' ); ?>
                             </button>
                         </td>
@@ -120,7 +120,7 @@ $ignored_url = add_query_arg( 'status', 'ignored', $base_url );
                 <?php
                 echo wp_kses_post(
                     paginate_links( [
-                        'base'      => add_query_arg( 'paged', '%#%', add_query_arg( 'status', $status, $base_url ) ),
+                        'base'      => add_query_arg( 'paged', '%#%', add_query_arg( 'status', $status, $ptscanner_base_url ) ),
                         'format'    => '',
                         'current'   => $page,
                         'total'     => $data[ 'total_pages' ],

@@ -35,16 +35,16 @@ if ( ! defined( 'ABSPATH' ) ) exit;
                         <td colspan="4"><?php esc_html_e( 'No errors logged.', 'prohibited-terms-scanner' ); ?></td>
                     </tr>
                 <?php else : ?>
-                    <?php foreach ( $errors as $error ) : ?>
+                    <?php foreach ( $errors as $ptscanner_error ) : ?>
                         <tr>
-                            <td><?php echo esc_html( $error[ 'context' ] ); ?></td>
-                            <td><?php echo esc_html( $error[ 'message' ] ); ?></td>
+                            <td><?php echo esc_html( $ptscanner_error[ 'context' ] ); ?></td>
+                            <td><?php echo esc_html( $ptscanner_error[ 'message' ] ); ?></td>
                             <td>
-                                <?php foreach ( $error[ 'extra' ] as $key => $value ) : ?>
-                                    <?php echo esc_html( $key . ': ' . $value ); ?><br>
+                                <?php foreach ( $ptscanner_error[ 'extra' ] as $ptscanner_key => $ptscanner_value ) : ?>
+                                    <?php echo esc_html( $ptscanner_key . ': ' . $ptscanner_value ); ?><br>
                                 <?php endforeach; ?>
                             </td>
-                            <td><?php echo esc_html( $error[ 'time' ] ); ?></td>
+                            <td><?php echo esc_html( $ptscanner_error[ 'time' ] ); ?></td>
                         </tr>
                     <?php endforeach; ?>
                 <?php endif; ?>
