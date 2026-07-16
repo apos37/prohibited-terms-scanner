@@ -177,11 +177,13 @@ class ResultsPageData {
             return '';
         }
 
+        $title = '';
+
         switch ( $row[ 'source_type' ] ) {
             case 'post':
                 $title = get_the_title( $row[ 'source_id' ] );
-
-                return $title ? $title : __( '(no title)', 'prohibited-terms-scanner' );
+                $title = $title ? $title : __( '(no title)', 'prohibited-terms-scanner' );
+                break;
 
             case 'comment':
                 $comment = get_comment( $row[ 'source_id' ] );
@@ -191,26 +193,23 @@ class ResultsPageData {
                 }
 
                 /* translators: %s: post title the comment was made on */
-                return sprintf( __( 'Comment on: %s', 'prohibited-terms-scanner' ), get_the_title( $comment->comment_post_ID ) );
+                $title = sprintf( __( 'Comment on: %s', 'prohibited-terms-scanner' ), get_the_title( $comment->comment_post_ID ) );
+                break;
 
             case 'term':
                 $term_object = get_term( $row[ 'source_id' ] );
-
-                return ( $term_object && ! is_wp_error( $term_object ) ) ? $term_object->name : '';
+                $title       = ( $term_object && ! is_wp_error( $term_object ) ) ? $term_object->name : '';
+                break;
 
             case 'attachment':
                 $title = get_the_title( $row[ 'source_id' ] );
-
-                if ( '' === $title ) {
-                    return __( '(no title)', 'prohibited-terms-scanner' );
-                }
-
-                return $title;
+                $title = '' === $title ? __( '(no title)', 'prohibited-terms-scanner' ) : $title;
+                break;
 
             case 'eri_file':
                 $title = get_the_title( $row[ 'source_id' ] );
-
-                return $title ? $title : __( '(no title)', 'prohibited-terms-scanner' );
+                $title = $title ? $title : __( '(no title)', 'prohibited-terms-scanner' );
+                break;
 
             default:
                 /**
@@ -220,8 +219,13 @@ class ResultsPageData {
                  * @param string $title The default (empty) title.
                  * @param array  $row   The full result row.
                  */
-                return apply_filters( 'ptscanner_source_title', '', $row );
+                $title = apply_filters( 'ptscanner_source_title', '', $row );
         }
+
+        // Decode HTML entities (e.g. "&#038;" → "&") so both the
+        // server-rendered admin table (esc_html-escaped) and the
+        // JS-rendered front-end table (.text()-inserted) display correctly.
+        return html_entity_decode( $title, ENT_QUOTES, 'UTF-8' );
     } // End resolve_source_title()
 
 

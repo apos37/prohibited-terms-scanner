@@ -228,8 +228,9 @@ class Scanner {
 
 
     /**
-     * Run do_shortcode() defensively; on error, log it and fall back to the
-     * raw (un-expanded) content so the post still gets scanned rather than skipped
+     * Run do_shortcode() defensively; on error, log it along with the
+     * shortcode tags present on the post (for diagnosis) and fall back to
+     * the raw (un-expanded) content so the post still gets scanned
      *
      * @param string $content
      * @param int    $post_id
@@ -240,19 +241,70 @@ class Scanner {
             throw new \ErrorException( $errstr, 0, $errno );
         } );
 
+        // Buffer locally around the shortcode expansion itself, since some
+        // shortcodes echo directly (e.g. admin-facing validation notices)
+        // rather than returning their output — this catches that regardless
+        // of what's happening with any outer buffer elsewhere in the request.
+        ob_start();
+
         try {
-            $expanded = do_shortcode( $content );
+            $expanded    = do_shortcode( $content );
+            $stray_echo  = ob_get_clean();
+
             restore_error_handler();
+
+            if ( '' !== trim( $stray_echo ) ) {
+                $shortcode_tags = $this->extract_shortcode_tags( $content );
+                $tags_list      = ! empty( $shortcode_tags ) ? implode( ', ', $shortcode_tags ) : 'none detected';
+
+                ErrorLog::instance()->log(
+                    'shortcode_echo',
+                    'A shortcode printed output directly instead of returning it (shortcode tag(s): ' . $tags_list . '): ' . substr( $stray_echo, 0, 500 ),
+                    [ 'post_id' => $post_id ]
+                );
+            }
 
             return $expanded;
         } catch ( \Throwable $e ) {
+            ob_end_clean();
             restore_error_handler();
 
-            ErrorLog::instance()->log( 'shortcode', $e->getMessage(), [ 'post_id' => $post_id ] );
+            $shortcode_tags = $this->extract_shortcode_tags( $content );
+            $tags_list      = ! empty( $shortcode_tags ) ? implode( ', ', $shortcode_tags ) : 'none detected';
+
+            ErrorLog::instance()->log(
+                'shortcode',
+                $e->getMessage() . ' (shortcode tag(s) on this post: ' . $tags_list . ')',
+                [ 'post_id' => $post_id ]
+            );
 
             return $content;
         }
     } // End safe_do_shortcode()
+
+
+    /**
+     * Extract the registered shortcode tags present in a block of content,
+     * used to identify which shortcode likely caused an extraction error
+     *
+     * @param string $content
+     * @return array
+     */
+    private function extract_shortcode_tags( $content ) : array {
+        global $shortcode_tags;
+
+        if ( empty( $shortcode_tags ) || '' === trim( (string) $content ) ) {
+            return [];
+        }
+
+        $pattern = get_shortcode_regex( array_keys( $shortcode_tags ) );
+
+        if ( ! preg_match_all( '/' . $pattern . '/', $content, $matches ) ) {
+            return [];
+        }
+
+        return array_unique( array_filter( $matches[ 2 ] ) );
+    } // End extract_shortcode_tags()
 
 
     /**

@@ -60,11 +60,18 @@ jQuery( function ( $ ) {
 
 
         /**
+         * Flat map of location type slug → human label, built once at init
+         */
+        locationLabels: {},
+
+
+        /**
          * Init
          */
         init: function () {
             this.renderLocationTypeCheckboxes();
             this.bindEvents();
+            this.buildLocationLabels();
         }, // End init()
 
 
@@ -215,6 +222,7 @@ jQuery( function ( $ ) {
             }
 
             const currentType = this.typeQueue[ this.currentTypeIndex ];
+            const failedOffset = this.currentOffset;
 
             $.post( ptscanner_data.ajaxUrl, {
                 action: 'ptscanner_run_batch',
@@ -227,8 +235,8 @@ jQuery( function ( $ ) {
 
                 if ( ! response.success ) {
                     const message = ( response.data && response.data.message ) ? response.data.message : 'Unknown error.';
-                    this.logError( currentType, message );
-                    this.advanceToNextType();
+                    this.logError( currentType, failedOffset, message );
+                    this.currentOffset += this.batchSize;
                     this.runNextBatch();
                     return;
                 }
@@ -245,22 +253,40 @@ jQuery( function ( $ ) {
 
                 this.runNextBatch();
             } ).fail( () => {
-                this.logError( currentType, ( ptscanner_data.strings.requestFailed || 'Request failed.' ) + ' (offset: ' + this.currentOffset + ')' );
-                this.advanceToNextType();
+                this.logError( currentType, failedOffset, ptscanner_data.strings.requestFailed || 'Request failed.' );
+                this.currentOffset += this.batchSize;
                 this.runNextBatch();
             } );
         }, // End runNextBatch()
 
 
         /**
-         * Log a visible error for a given type
+         * Flatten the grouped location type registry into a simple slug → label map
+         */
+        buildLocationLabels: function () {
+            this.locationLabels = {};
+
+            $.each( ptscanner_data.locationTypes, ( groupName, types ) => {
+                $.each( types, ( slug, typeData ) => {
+                    this.locationLabels[ slug ] = typeData.label;
+                } );
+            } );
+        }, // End buildLocationLabels()
+
+
+        /**
+         * Log a visible, human-readable error for a given type/batch
          *
          * @param {string} typeSlug
-         * @param {string} message
+         * @param {number} offset
+         * @param {string} rawMessage
          */
-        logError: function ( typeSlug, message ) {
+        logError: function ( typeSlug, offset, rawMessage ) {
+            const label = this.locationLabels[ typeSlug ] || typeSlug;
+            const message = 'There was an error scanning ' + label + ' on one or more sources at batch ' + offset + '. Technical detail: ' + rawMessage;
+
             const item = $( '<li class="ptscanner-scan-error"></li>' );
-            item.text( typeSlug + ': ' + message );
+            item.text( message );
             $( '#ptscanner-scan-errors' ).append( item );
         }, // End logError()
 
