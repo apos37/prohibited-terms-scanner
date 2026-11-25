@@ -48,7 +48,7 @@ class ExternalLinksScanner {
             return [ 'scanned' => 0, 'links_found' => 0 ];
         }
 
-        $query = new \WP_Query( [
+        $query = new \WP_Query( Helpers::query_args( [
             'post_type'        => array_values( $post_types ),
             'post_status'      => 'publish',
             'posts_per_page'   => -1,
@@ -56,8 +56,7 @@ class ExternalLinksScanner {
             'order'            => 'ASC',
             'fields'           => 'ids',
             'no_found_rows'    => true,
-            'suppress_filters' => true,
-        ] );
+        ], 'external_links' ) );
 
         $terms      = Settings::instance()->get_terms();
         $site_host  = wp_parse_url( home_url(), PHP_URL_HOST );

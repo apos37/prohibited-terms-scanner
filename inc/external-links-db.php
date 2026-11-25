@@ -123,7 +123,7 @@ class ExternalLinksDB {
     public function upsert( array $args ) : bool {
         global $wpdb;
 
-        $table_name = $this->table();
+        $table_name = esc_sql( $this->table() );
         $now        = current_time( 'mysql' );
         $link_hash  = md5( $args[ 'link' ] );
 
@@ -210,18 +210,17 @@ class ExternalLinksDB {
 
         $table_name = esc_sql( $this->table() );
         $offset     = ( max( 1, $page ) - 1 ) * $per_page;
-        $where      = 'flagged' === $filter ? 'WHERE is_flagged = 1' : '';
 
         $total_all     = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table_name}" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
         $total_flagged = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$table_name} WHERE is_flagged = 1" ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
         $total         = 'flagged' === $filter ? $total_flagged : $total_all;
 
+        $sql = 'flagged' === $filter
+            ? "SELECT * FROM {$table_name} WHERE is_flagged = 1 ORDER BY link ASC LIMIT %d OFFSET %d"
+            : "SELECT * FROM {$table_name} ORDER BY is_flagged DESC, link ASC LIMIT %d OFFSET %d";
+
         $rows = $wpdb->get_results( // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-            $wpdb->prepare(
-                "SELECT * FROM {$table_name} {$where} ORDER BY is_flagged DESC, link ASC LIMIT %d OFFSET %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-                $per_page,
-                $offset
-            ),
+            $wpdb->prepare( $sql, $per_page, $offset ), // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
             ARRAY_A
         );
 

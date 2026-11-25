@@ -53,36 +53,25 @@ class ResultsPageData {
         global $wpdb;
 
         $table_name  = esc_sql( DB::instance()->table() );
-        $posts_table = $wpdb->posts;
         $offset      = ( max( 1, $page ) - 1 ) * $this->per_page;
 
-        $join        = '';
-        $extra_where = '';
-        $query_args  = [ $status ];
+        $location_type = $location_filter;
+        $post_type     = '';
 
-        if ( '' !== $term_filter ) {
-            $extra_where  .= ' AND r.term = %s';
-            $query_args[]  = $term_filter;
-        }
-
-        if ( '' !== $location_filter ) {
-            if ( false !== strpos( $location_filter, '|' ) ) {
-                [ $location_type, $post_type ] = explode( '|', $location_filter, 2 );
-
-                $join         = "LEFT JOIN {$posts_table} p ON r.source_id = p.ID AND r.source_type = 'post'";
-                $extra_where .= ' AND r.location_type = %s AND p.post_type = %s';
-                $query_args[] = $location_type;
-                $query_args[] = $post_type;
-            } else {
-                $extra_where  .= ' AND r.location_type = %s';
-                $query_args[]  = $location_filter;
-            }
+        if ( false !== strpos( $location_filter, '|' ) ) {
+            [ $location_type, $post_type ] = explode( '|', $location_filter, 2 );
         }
 
         $total = (int) $wpdb->get_var( // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
             $wpdb->prepare(
-                "SELECT COUNT(*) FROM {$table_name} r {$join} WHERE r.status = %s{$extra_where}", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-                $query_args
+                "SELECT COUNT(*) FROM {$table_name} r LEFT JOIN {$wpdb->posts} p ON r.source_id = p.ID AND r.source_type = 'post' WHERE r.status = %s AND ( %s = '' OR r.term = %s ) AND ( %s = '' OR r.location_type = %s ) AND ( %s = '' OR p.post_type = %s )", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+                $status,
+                $term_filter,
+                $term_filter,
+                $location_type,
+                $location_type,
+                $post_type,
+                $post_type
             )
         );
 
@@ -100,12 +89,18 @@ class ResultsPageData {
             )
         );
 
-        $rows_args = array_merge( $query_args, [ $this->per_page, $offset ] );
-
         $rows = $wpdb->get_results( // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-            $wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- $rows_args holds one value per placeholder, built alongside $extra_where.
-                "SELECT r.* FROM {$table_name} r {$join} WHERE r.status = %s{$extra_where} ORDER BY r.created_at DESC LIMIT %d OFFSET %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-                $rows_args
+            $wpdb->prepare(
+                "SELECT r.* FROM {$table_name} r LEFT JOIN {$wpdb->posts} p ON r.source_id = p.ID AND r.source_type = 'post' WHERE r.status = %s AND ( %s = '' OR r.term = %s ) AND ( %s = '' OR r.location_type = %s ) AND ( %s = '' OR p.post_type = %s ) ORDER BY r.created_at DESC LIMIT %d OFFSET %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+                $status,
+                $term_filter,
+                $term_filter,
+                $location_type,
+                $location_type,
+                $post_type,
+                $post_type,
+                $this->per_page,
+                $offset
             ),
             ARRAY_A
         );

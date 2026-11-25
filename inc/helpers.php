@@ -13,6 +13,19 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 class Helpers {
 
     /**
+     * WP_Query args for the scanners, filterable so access-control plugins can let
+     * scans see every published item without suppressing all query filters
+     *
+     * @param array  $args
+     * @param string $context posts|attachments|external_links|eri_files
+     * @return array
+     */
+    public static function query_args( array $args, string $context ) : array {
+        return (array) apply_filters( 'ptscanner_query_args', $args, $context );
+    } // End query_args()
+
+
+    /**
      * Check whether the current admin request is one of this plugin's tabs.
      * Uses the page slug instead of the screen ID, since the screen ID prefix
      * changes with the menu title's count bubble.

@@ -820,7 +820,7 @@ class Scanner {
             return [];
         }
 
-        $query = new \WP_Query( [
+        $query = new \WP_Query( Helpers::query_args( [
             'post_type'        => $post_types,
             'post_status'      => 'publish',
             'posts_per_page'   => $limit,
@@ -829,8 +829,7 @@ class Scanner {
             'order'            => 'ASC',
             'fields'           => 'ids',
             'no_found_rows'    => true,
-            'suppress_filters' => true,
-        ] );
+        ], 'posts' ) );
 
         return $query->posts;
     } // End get_post_batch()
@@ -854,14 +853,13 @@ class Scanner {
             'order'            => 'ASC',
             'fields'           => 'ids',
             'no_found_rows'    => true,
-            'suppress_filters' => true,
         ];
 
         if ( ! empty( $mimes ) ) {
             $args[ 'post_mime_type' ] = $mimes;
         }
 
-        $query = new \WP_Query( $args );
+        $query = new \WP_Query( Helpers::query_args( $args, 'attachments' ) );
 
         return $query->posts;
     } // End get_attachment_batch()

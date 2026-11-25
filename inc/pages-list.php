@@ -94,8 +94,8 @@ class PagesList {
             'post_status'    => 'any',
             'posts_per_page' => -1,
             'fields'         => 'ids',
-            'meta_key'       => '_thumbnail_id',
-            'meta_value'     => $attachment_id,
+            'meta_key'       => '_thumbnail_id', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key -- On-demand lookup for one attachment when a user clicks Check Usage.
+            'meta_value'     => $attachment_id, // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_value -- Same on-demand featured image lookup.
         ] );
 
         foreach ( $featured_on as $post_id ) {

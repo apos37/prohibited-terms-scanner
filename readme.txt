@@ -121,13 +121,13 @@ This plugin bundles the following library:
 * Fix: Missing or unreadable files were skipped silently; they are now logged to the Errors page
 * Fix: Fatal errors during file scans now report the file being processed, and stale tracking data is cleared
 * Fix: Restricted pages were hidden from scheduled scans by access-control plugins
+* Fix: The External Links table was never created and database upgrades never ran
+* Fix: Front-end shortcode tables and boxes overflowing on themes with narrow content areas
 * Fix: First "Un-Omit" click on an omitted source re-omitted it instead
 * Fix: Front-end External Links pagination also reloaded the Results panel
 * Fix: Results filters dropped terms containing "|" and filtered pagination lost the active filters
 * Fix: Security hardening of the media usage list output
 * Fix: Plugin Check compliance (escaping, nonces, translator comments, enqueued assets)
-* Fix: The External Links table was never created and database upgrades never ran
-* Fix: Front-end shortcode tables and boxes overflowing on themes with narrow content areas
 
 = 1.2.1 =
 * Fix: Missing Location column in the Results page table that caused Source, Date, and Actions to misalign

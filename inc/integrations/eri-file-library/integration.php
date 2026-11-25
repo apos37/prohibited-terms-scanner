@@ -216,7 +216,7 @@ class EriFileLibrary {
      * @return array
      */
     private function get_eri_batch( $offset, $limit ) : array {
-        $query = new \WP_Query( [
+        $query = new \WP_Query( Helpers::query_args( [
             'post_type'        => $this->post_type(),
             'post_status'      => 'publish',
             'posts_per_page'   => $limit,
@@ -225,8 +225,7 @@ class EriFileLibrary {
             'order'            => 'ASC',
             'fields'           => 'ids',
             'no_found_rows'    => true,
-            'suppress_filters' => true,
-        ] );
+        ], 'eri_files' ) );
 
         return $query->posts;
     } // End get_eri_batch()

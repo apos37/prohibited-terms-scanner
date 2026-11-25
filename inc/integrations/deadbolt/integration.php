@@ -39,3 +39,24 @@ function ptscanner_deadbolt_is_public( bool $is_public, int $post_id ) : bool {
 } // End ptscanner_deadbolt_is_public()
 
 add_filter( 'ptscanner_is_public_post', __NAMESPACE__ . '\\ptscanner_deadbolt_is_public', 10, 2 );
+
+
+/**
+ * Let scanner queries see every published item. Deadbolt hides restricted posts from
+ * front-end and cron queries unless the query names its own context; "ptscanner" is
+ * never an enabled hiding context, so Deadbolt leaves these queries alone.
+ *
+ * @param array $args
+ * @return array
+ */
+function ptscanner_deadbolt_query_args( array $args ) : array {
+    if ( ! class_exists( '\PluginRx\Deadbolt\Hide' ) ) {
+        return $args;
+    }
+
+    $args[ \PluginRx\Deadbolt\Hide::QUERY_VAR ] = 'ptscanner';
+
+    return $args;
+} // End ptscanner_deadbolt_query_args()
+
+add_filter( 'ptscanner_query_args', __NAMESPACE__ . '\\ptscanner_deadbolt_query_args' );

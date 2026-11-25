@@ -19,8 +19,8 @@ plugin that bundles a different version of the same library. Parsing behavior is
 unchanged.
 
 1. Every namespace is prefixed with "PTScannerVendor" using php-scoper 0.17.5
-   (Smalot\PdfParser becomes PTScannerVendor\Smalot\PdfParser). The
-   configuration is in scoper.inc.php in the plugin root.
+   (Smalot\PdfParser becomes PTScannerVendor\Smalot\PdfParser), using the
+   configuration at the end of this file.
 2. Two class names built from strings at runtime were updated to the prefixed
    namespace, so they resolve after scoping:
    - Encoding.php: the base encoding class name in getEncodingClass().
@@ -34,5 +34,28 @@ unchanged.
 Copyright and license headers in the source files are kept as they were.
 
 To rebuild from the unmodified source, run "composer install" with the
-composer.json and composer.lock in the plugin root, then run php-scoper with
-scoper.inc.php.
+composer.json and composer.lock in the plugin root, save the configuration below
+as scoper.inc.php, then run php-scoper with it.
+
+php-scoper configuration (scoper.inc.php):
+
+<?php
+
+return [
+    'prefix' => 'PTScannerVendor',
+    'finders' => [
+        \Isolated\Symfony\Component\Finder\Finder::create()
+            ->files()
+            ->in( 'vendor/smalot' )
+            ->name( '*.php' ),
+    ],
+    'patchers' => [
+        static function ( string $file_path, string $prefix, string $contents ) : string {
+            return str_replace( "'\\\\Smalot\\\\PdfParser\\\\", "'\\\\" . $prefix . "\\\\Smalot\\\\PdfParser\\\\", $contents );
+        },
+    ],
+    'exclude-namespaces' => [],
+    'expose-global-functions' => false,
+    'expose-global-classes' => false,
+];
+
