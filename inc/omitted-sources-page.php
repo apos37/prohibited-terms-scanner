@@ -168,7 +168,7 @@ class OmittedSourcesPage {
     public function ajax_toggle_omit() {
         check_ajax_referer( 'ptscanner_nonce', 'nonce' );
 
-        if ( ! current_user_can( 'manage_options' ) ) {
+        if ( ! Ajax::instance()->current_user_can_scan() ) {
             wp_send_json_error( [ 'message' => __( 'Permission denied.', 'prohibited-terms-scanner' ) ] );
         }
 

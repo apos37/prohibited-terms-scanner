@@ -49,25 +49,63 @@ class ResultsPageData {
      * @param int    $page
      * @return array [ 'rows' => array, 'total' => int, 'total_pages' => int ]
      */
-    public function get_page( $status, $page ) : array {
+    public function get_page( $status, $page, $term_filter = '', $location_filter = '' ) : array {
         global $wpdb;
 
-        $table_name = esc_sql( DB::instance()->table() );
-        $offset     = ( max( 1, $page ) - 1 ) * $this->per_page;
+        $table_name  = esc_sql( DB::instance()->table() );
+        $posts_table = $wpdb->posts;
+        $offset      = ( max( 1, $page ) - 1 ) * $this->per_page;
+
+        $join        = '';
+        $extra_where = '';
+        $query_args  = [ $status ];
+
+        if ( '' !== $term_filter ) {
+            $extra_where  .= ' AND r.term = %s';
+            $query_args[]  = $term_filter;
+        }
+
+        if ( '' !== $location_filter ) {
+            if ( false !== strpos( $location_filter, '|' ) ) {
+                [ $location_type, $post_type ] = explode( '|', $location_filter, 2 );
+
+                $join         = "LEFT JOIN {$posts_table} p ON r.source_id = p.ID AND r.source_type = 'post'";
+                $extra_where .= ' AND r.location_type = %s AND p.post_type = %s';
+                $query_args[] = $location_type;
+                $query_args[] = $post_type;
+            } else {
+                $extra_where  .= ' AND r.location_type = %s';
+                $query_args[]  = $location_filter;
+            }
+        }
 
         $total = (int) $wpdb->get_var( // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
             $wpdb->prepare(
-                "SELECT COUNT(*) FROM {$table_name} WHERE status = %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-                $status
+                "SELECT COUNT(*) FROM {$table_name} r {$join} WHERE r.status = %s{$extra_where}", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+                $query_args
             )
         );
 
+        $total_flagged = (int) $wpdb->get_var( // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+            $wpdb->prepare(
+                "SELECT COUNT(*) FROM {$table_name} WHERE status = %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+                'flagged'
+            )
+        );
+
+        $total_ignored = (int) $wpdb->get_var( // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+            $wpdb->prepare(
+                "SELECT COUNT(*) FROM {$table_name} WHERE status = %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+                'ignored'
+            )
+        );
+
+        $rows_args = array_merge( $query_args, [ $this->per_page, $offset ] );
+
         $rows = $wpdb->get_results( // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
             $wpdb->prepare(
-                "SELECT * FROM {$table_name} WHERE status = %s ORDER BY created_at DESC LIMIT %d OFFSET %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-                $status,
-                $this->per_page,
-                $offset
+                "SELECT r.* FROM {$table_name} r {$join} WHERE r.status = %s{$extra_where} ORDER BY r.created_at DESC LIMIT %d OFFSET %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+                $rows_args
             ),
             ARRAY_A
         );
@@ -75,9 +113,11 @@ class ResultsPageData {
         $rows = array_map( [ $this, 'enrich_row' ], $rows ?: [] );
 
         return [
-            'rows'        => $rows,
-            'total'       => $total,
-            'total_pages' => (int) ceil( $total / $this->per_page ),
+            'rows'          => $rows,
+            'total'         => $total,
+            'total_pages'   => (int) ceil( $total / $this->per_page ),
+            'total_flagged' => $total_flagged,
+            'total_ignored' => $total_ignored,
         ];
     } // End get_page()
 

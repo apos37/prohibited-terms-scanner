@@ -497,3 +497,129 @@
     border-color: #2271b1;
     color: #fff;
 }
+
+.ptscanner-pages-toggle-omit.ptscanner-disabled {
+    pointer-events: none;
+    opacity: 0.5;
+}
+
+.ptscanner-row-omitted {
+    opacity: 0.5;
+    background: #f0f0f1 !important;
+}
+
+.ptscanner-pages-toggle-omit.ptscanner-pending {
+    pointer-events: none;
+    opacity: 0.5;
+}
+
+.ptscanner-inline-spinner {
+    display: none;
+    width: 12px;
+    height: 12px;
+    margin-left: 6px;
+    vertical-align: middle;
+    border: 2px solid #dcdcde;
+    border-top-color: #2271b1;
+    border-radius: 50%;
+    animation: ptscanner-spin 0.8s linear infinite;
+}
+
+.ptscanner-inline-spinner.ptscanner-spinner-active {
+    display: inline-block;
+}
+
+.ptscanner-row-flagged {
+    background: #fcf0f1 !important;
+}
+
+.ptscanner-row-flagged td:first-child {
+    border-left: 3px solid #d63638;
+}
+
+.ptscanner-row-actions button,
+.ptscanner-front-results button {
+    margin-bottom: 10px;
+}
+
+.ptscanner-front-results .ptscanner-front-tabs button {
+    margin-bottom: 0px !important;
+}
+
+.ptscanner-media-usage-list {
+    margin: 5px 0 0 20px;
+    list-style: disc;
+}
+
+.ptscanner-media-usage-result {
+    margin-top: 20px;
+}
+
+.ptscanner-media-usage-highlight {
+    animation: ptscanner-usage-bounce 0.4s ease 2, ptscanner-usage-fade 0.6s ease 1.5s forwards;
+}
+
+@keyframes ptscanner-usage-bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-4px); }
+}
+
+@keyframes ptscanner-usage-fade {
+    from { background: #fff3cd; }
+    to { background: transparent; }
+}
+
+.ptscanner-front-main-tab,
+.ptscanner-front-tab {
+    padding: 8px 16px;
+    margin-right: 4px;
+    background: #f0f0f1;
+    border: 1px solid #dcdcde;
+    border-bottom: none;
+    border-radius: 4px 4px 0 0;
+    color: #50575e;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.ptscanner-front-main-tab:hover,
+.ptscanner-front-tab:hover {
+    background: #e5e5e5;
+    color: #1d2327;
+}
+
+.ptscanner-front-main-tab.active,
+.ptscanner-front-tab.active {
+    background: #fff;
+    border-color: #dcdcde;
+    border-bottom: 2px solid #2271b1;
+    color: #2271b1;
+    font-weight: 600;
+}
+
+.ptscanner-front-tabs-main {
+    border-bottom: 1px solid #dcdcde;
+    margin-bottom: 0;
+}
+
+.ptscanner-front-tabs {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 15px;
+    border-bottom: 1px solid #dcdcde;
+}
+
+.ptscanner-front-tabs li {
+    display: inline-block;
+    margin: 0;
+}
+
+.ptscanner-front-filters-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.ptscanner-front-filters select {
+    margin-right: 8px;
+}

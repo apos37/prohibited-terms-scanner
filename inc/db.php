@@ -23,7 +23,7 @@ class DB {
      *
      * @var string
      */
-    private string $schema_version = '1.0.0';
+    private string $schema_version = '1.1.0';
 
 
     /**
@@ -104,6 +104,7 @@ class DB {
             file_page INT UNSIGNED NULL,
             status VARCHAR(20) NOT NULL DEFAULT 'flagged',
             match_hash CHAR(32) NOT NULL,
+            note TEXT NULL,
             created_at DATETIME NOT NULL,
             updated_at DATETIME NOT NULL,
             PRIMARY KEY (id),
@@ -118,7 +119,9 @@ class DB {
 
 
     /**
-     * Wipe all flagged (non-ignored) results, used before a fresh full scan
+     * Wipe all flagged (non-ignored) results without a note, used before a
+     * fresh full scan — rows carrying a note are preserved regardless of
+     * status, since a note signals unresolved follow-up work in progress
      *
      * @return void
      */
@@ -129,7 +132,7 @@ class DB {
 
         $wpdb->query( // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
             $wpdb->prepare(
-                "DELETE FROM {$table_name} WHERE status = %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+                "DELETE FROM {$table_name} WHERE status = %s AND ( note IS NULL OR note = '' )", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
                 'flagged'
             )
         );
@@ -362,5 +365,107 @@ class DB {
     public function clear_flagged_count_cache() {
         delete_option( 'ptscanner_flagged_count' );
     } // End clear_flagged_count_cache()
+
+
+    /**
+     * Save or clear a note on a result row
+     *
+     * @param int    $id
+     * @param string $note
+     * @return bool
+     */
+    public function update_note( int $id, string $note ) : bool {
+        global $wpdb;
+
+        $updated = $wpdb->update( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+            $this->table(),
+            [
+                'note'       => '' === $note ? null : $note,
+                'updated_at' => current_time( 'mysql' ),
+            ],
+            [ 'id' => $id ],
+            [ '%s', '%s' ],
+            [ '%d' ]
+        );
+
+        return false !== $updated;
+    } // End update_note()
+
+
+    /**
+     * Get a list of distinct terms for a given status
+     *
+     * @param string $status
+     * @return array
+     */
+    public function get_distinct_terms( string $status ) : array {
+        global $wpdb;
+
+        $table_name = esc_sql( $this->table() );
+
+        $terms = $wpdb->get_col( // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+            $wpdb->prepare(
+                "SELECT DISTINCT term FROM {$table_name} WHERE status = %s ORDER BY term ASC", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+                $status
+            )
+        );
+
+        return $terms ?: [];
+    } // End get_distinct_terms()
+
+
+    /**
+     * Get distinct location/post-type combinations for the filter dropdown,
+     * matching the labels actually shown in the table (e.g. "Main Content
+     * (Training)" is its own distinct option, not just "Main Content")
+     *
+     * @param string $status
+     * @return array Array of [ 'key' => string, 'label' => string ]
+     */
+    public function get_distinct_location_combos( string $status ) : array {
+        global $wpdb;
+
+        $table_name = esc_sql( $this->table() );
+        $posts_table = $wpdb->posts;
+
+        $rows = $wpdb->get_results( // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+            $wpdb->prepare(
+                "SELECT DISTINCT r.location_type, p.post_type
+                FROM {$table_name} r
+                LEFT JOIN {$posts_table} p ON r.source_id = p.ID AND r.source_type = 'post'
+                WHERE r.status = %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+                $status
+            ),
+            ARRAY_A
+        );
+
+        $combos = [];
+        $post_type_suffixed = [ 'title', 'content', 'excerpt' ];
+
+        foreach ( $rows as $row ) {
+            $location_type = $row[ 'location_type' ];
+            $post_type     = $row[ 'post_type' ];
+
+            $type = TypeRegistry::instance()->get_type( $location_type );
+            $base_label = $type[ 'label' ] ?? ucwords( str_replace( '_', ' ', $location_type ) );
+
+            if ( in_array( $location_type, $post_type_suffixed, true ) && $post_type ) {
+                $post_type_obj = get_post_type_object( $post_type );
+                $post_type_label = $post_type_obj ? $post_type_obj->labels->singular_name : $post_type;
+
+                $key   = $location_type . '|' . $post_type;
+                $label = sprintf( '%s (%s)', $base_label, $post_type_label );
+            } else {
+                $key   = $location_type;
+                $label = $base_label;
+            }
+
+            $combos[ $key ] = $label;
+        }
+
+        asort( $combos );
+
+        return $combos;
+    } // End get_distinct_location_combos()
 
 }

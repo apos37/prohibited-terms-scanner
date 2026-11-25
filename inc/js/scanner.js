@@ -60,6 +60,18 @@ jQuery( function ( $ ) {
 
 
         /**
+         * Timestamp (ms) when the current scan run started
+         */
+        scanStartTime: 0,
+
+
+        /**
+         * Interval ID for the live elapsed-time display
+         */
+        elapsedInterval: null,
+
+
+        /**
          * Flat map of location type slug → human label, built once at init
          */
         locationLabels: {},
@@ -164,6 +176,8 @@ jQuery( function ( $ ) {
             this.totalScanned = 0;
             this.totalInserted = 0;
             this.cancelRequested = false;
+            this.scanStartTime = Date.now();
+            this.startElapsedTimer();
 
             $( '#ptscanner-start-scan' ).prop( 'disabled', true ).hide();
             $( '#ptscanner-cancel-scan' ).show();
@@ -178,6 +192,66 @@ jQuery( function ( $ ) {
                 this.runNextBatch();
             } );
         }, // End startScan()
+
+
+        /**
+         * Start a repeating timer that updates the elapsed-time display every second
+         */
+        startElapsedTimer: function () {
+            this.stopElapsedTimer();
+
+            $( '#ptscanner-elapsed-time' ).show();
+
+            this.elapsedInterval = setInterval( () => {
+                const seconds = Math.floor( ( Date.now() - this.scanStartTime ) / 1000 );
+                $( '#ptscanner-elapsed-time-text' ).text( this.formatElapsed( seconds ) );
+            }, 1000 );
+        }, // End startElapsedTimer()
+
+
+        /**
+         * Stop the elapsed-time timer, if running
+         */
+        stopElapsedTimer: function () {
+            if ( this.elapsedInterval ) {
+                clearInterval( this.elapsedInterval );
+                this.elapsedInterval = null;
+            }
+        }, // End stopElapsedTimer()
+
+
+        /**
+         * Stop the timer and persist the final duration to the server
+         */
+        finishElapsedTimer: function () {
+            this.stopElapsedTimer();
+
+            const seconds = Math.floor( ( Date.now() - this.scanStartTime ) / 1000 );
+
+            $.post( ptscanner_data.ajaxUrl, {
+                action: 'ptscanner_save_scan_duration',
+                nonce: ptscanner_data.nonce,
+                seconds: seconds,
+            } );
+        }, // End finishElapsedTimer()
+
+
+        /**
+         * Format a duration in seconds as "Xm Ys" or "Xs"
+         *
+         * @param {number} totalSeconds
+         * @return {string}
+         */
+        formatElapsed: function ( totalSeconds ) {
+            const minutes = Math.floor( totalSeconds / 60 );
+            const seconds = totalSeconds % 60;
+
+            if ( minutes > 0 ) {
+                return minutes + 'm ' + seconds + 's';
+            }
+
+            return seconds + 's';
+        }, // End formatElapsed()
 
 
         /**
@@ -336,6 +410,7 @@ jQuery( function ( $ ) {
             this.updateProgressLabel( ptscanner_data.strings.done );
             this.resetControls();
             this.loadSummary();
+            this.finishElapsedTimer();
 
             if ( $( '#ptscanner-front-results' ).length ) {
                 window.ptscannerResults.frontPage = 1;
@@ -353,6 +428,7 @@ jQuery( function ( $ ) {
             this.updateProgressLabel( ptscanner_data.strings.cancelled || 'Scan cancelled. Results so far are saved.' );
             this.resetControls();
             this.loadSummary();
+            this.finishElapsedTimer();
 
             if ( $( '#ptscanner-front-results' ).length ) {
                 window.ptscannerResults.frontPage = 1;
@@ -393,25 +469,23 @@ jQuery( function ( $ ) {
          * @param {Array} summary Array of [ term, count ]
          */
         renderSummary: function ( summary ) {
-            const body = $( '#ptscanner-summary-body' );
+            const body = $( '#ptscanner-persistent-summary-body' );
             body.empty();
 
             if ( ! summary.length ) {
                 const row = $( '<tr></tr>' );
                 row.append( $( '<td colspan="2"></td>' ).text( 'No matches found.' ) );
                 body.append( row );
-                $( '#ptscanner-summary' ).show();
-                return;
+            } else {
+                summary.forEach( ( entry ) => {
+                    const row = $( '<tr></tr>' );
+                    row.append( $( '<td></td>' ).text( entry.term ) );
+                    row.append( $( '<td></td>' ).text( entry.count ) );
+                    body.append( row );
+                } );
             }
 
-            summary.forEach( ( entry ) => {
-                const row = $( '<tr></tr>' );
-                row.append( $( '<td></td>' ).text( entry.term ) );
-                row.append( $( '<td></td>' ).text( entry.count ) );
-                body.append( row );
-            } );
-
-            $( '#ptscanner-summary' ).show();
+            $( '#ptscanner-summary-accordion' ).prop( 'open', true );
         }, // End renderSummary()
 
     };

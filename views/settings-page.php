@@ -74,6 +74,23 @@ $ptscanner_warning_terms     = $ptscanner_settings->get_warning_terms();
         </div>
 
         <div class="ptscanner-card">
+            <h2><?php esc_html_e( 'Taxonomies', 'prohibited-terms-scanner' ); ?></h2>
+            <p class="description"><?php esc_html_e( 'Choose which taxonomies are included when scanning term names/slugs.', 'prohibited-terms-scanner' ); ?></p>
+
+            <?php
+            $ptscanner_taxonomies         = get_taxonomies( [ 'public' => true ], 'objects' );
+            $ptscanner_enabled_taxonomies = $ptscanner_settings->get_enabled_taxonomies();
+            ?>
+            <?php foreach ( $ptscanner_taxonomies as $ptscanner_taxonomy ) : ?>
+                <label class="ptscanner-type-checkbox">
+                    <input type="checkbox" name="taxonomies[]" value="<?php echo esc_attr( $ptscanner_taxonomy->name ); ?>"
+                        <?php checked( in_array( $ptscanner_taxonomy->name, $ptscanner_enabled_taxonomies, true ) ); ?>>
+                    <?php echo esc_html( $ptscanner_taxonomy->label ); ?> (<?php echo esc_html( $ptscanner_taxonomy->name ); ?>)
+                </label>
+            <?php endforeach; ?>
+        </div>
+
+        <div class="ptscanner-card">
             <h2><?php esc_html_e( 'Performance', 'prohibited-terms-scanner' ); ?></h2>
 
             <table class="form-table">

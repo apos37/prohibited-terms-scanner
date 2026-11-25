@@ -68,6 +68,16 @@ class FrontEnd {
 
 
     /**
+     * Whether the current user may toggle omit status on the front-end
+     *
+     * @return bool
+     */
+    private function current_user_can_toggle_omit() : bool {
+        return $this->current_user_can_use_shortcode();
+    } // End current_user_can_toggle_omit()
+
+
+    /**
      * Render the shortcode output
      *
      * @param array $atts
@@ -79,6 +89,8 @@ class FrontEnd {
         }
 
         $this->enqueue_scanner_assets();
+
+        $ptscanner_can_toggle_omit = $this->current_user_can_toggle_omit();
 
         ob_start();
         require Bootstrap::path( 'views/shortcode-scanner.php' );

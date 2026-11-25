@@ -42,8 +42,14 @@ class Ajax {
         add_action( 'wp_ajax_ptscanner_delete_result', [ $this, 'delete_result' ] );
         add_action( 'wp_ajax_ptscanner_get_summary', [ $this, 'get_summary' ] );
         add_action( 'wp_ajax_ptscanner_get_results', [ $this, 'get_results' ] );
-        add_action( 'wp_ajax_nopriv_ptscanner_get_results', [ $this, 'get_results' ] );
         add_action( 'wp_ajax_ptscanner_clear_all', [ $this, 'clear_all' ] );
+        add_action( 'wp_ajax_ptscanner_get_pages_list', [ $this, 'get_pages_list' ] );
+        add_action( 'wp_ajax_ptscanner_save_note', [ $this, 'save_note' ] );
+        add_action( 'wp_ajax_ptscanner_run_external_links_scan', [ $this, 'run_external_links_scan' ] );
+        add_action( 'wp_ajax_ptscanner_get_external_links', [ $this, 'get_external_links' ] );
+        add_action( 'wp_ajax_ptscanner_save_external_link_note', [ $this, 'save_external_link_note' ] );
+        add_action( 'wp_ajax_ptscanner_save_scan_duration', [ $this, 'save_scan_duration' ] );
+        add_action( 'wp_ajax_ptscanner_check_media_usage', [ $this, 'check_media_usage' ] );
 
         // Start buffering as early as possible (plugins_loaded, when this
         // class is instantiated) so any stray output from other plugins'
@@ -105,7 +111,7 @@ class Ajax {
      *
      * @return bool
      */
-    private function current_user_can_scan() : bool {
+    public function current_user_can_scan() : bool {
         if ( current_user_can( 'manage_options' ) ) {
             return true;
         }
@@ -338,7 +344,14 @@ class Ajax {
         $status = in_array( $status, [ 'flagged', 'ignored' ], true ) ? $status : 'flagged';
         $page   = isset( $_POST[ 'page' ] ) ? absint( wp_unslash( $_POST[ 'page' ] ) ) : 1;
 
-        $data = ResultsPageData::instance()->get_page( $status, max( 1, $page ) );
+        $term_filter     = isset( $_POST[ 'term_filter' ] ) ? sanitize_text_field( wp_unslash( $_POST[ 'term_filter' ] ) ) : '';
+        $location_filter = isset( $_POST[ 'location_filter' ] ) ? sanitize_text_field( wp_unslash( $_POST[ 'location_filter' ] ) ) : '';
+
+        $data = ResultsPageData::instance()->get_page( $status, max( 1, $page ), $term_filter, $location_filter );
+
+        $data[ 'distinct_terms' ] = DB::instance()->get_distinct_terms( $status );
+
+        $data[ 'distinct_locations' ] = DB::instance()->get_distinct_location_combos( $status );
 
         $this->send_success( $data );
     } // End get_results()
@@ -373,6 +386,187 @@ class Ajax {
             'deleted' => $deleted,
         ] );
     } // End clear_all()
+
+
+    /**
+     * Get a page of the Pages List tab (admin or front-end shortcode)
+     *
+     * @return void
+     */
+    public function get_pages_list() {
+        check_ajax_referer( 'ptscanner_nonce', 'nonce' );
+
+        if ( ! $this->current_user_can_scan() ) {
+            $this->send_error( [ 'message' => __( 'Permission denied.', 'prohibited-terms-scanner' ) ] );
+            return;
+        }
+
+        $page = isset( $_POST[ 'page' ] ) ? absint( wp_unslash( $_POST[ 'page' ] ) ) : 1;
+
+        $data = PagesList::instance()->get_page( max( 1, $page ) );
+
+        $this->send_success( $data );
+    } // End get_pages_list()
+
+
+    /**
+     * Save (or clear) a note on a result row
+     *
+     * @return void
+     */
+    public function save_note() {
+        check_ajax_referer( 'ptscanner_nonce', 'nonce' );
+
+        if ( ! $this->current_user_can_scan() ) {
+            $this->send_error( [ 'message' => __( 'Permission denied.', 'prohibited-terms-scanner' ) ] );
+            return;
+        }
+
+        $id   = isset( $_POST[ 'id' ] ) ? absint( wp_unslash( $_POST[ 'id' ] ) ) : 0;
+        $note = isset( $_POST[ 'note' ] ) ? sanitize_textarea_field( wp_unslash( $_POST[ 'note' ] ) ) : '';
+
+        if ( ! $id ) {
+            $this->send_error( [ 'message' => __( 'Invalid request.', 'prohibited-terms-scanner' ) ] );
+            return;
+        }
+
+        $updated = DB::instance()->update_note( $id, $note );
+
+        if ( ! $updated ) {
+            $this->send_error( [ 'message' => __( 'Could not save note.', 'prohibited-terms-scanner' ) ] );
+            return;
+        }
+
+        $this->send_success( [ 'message' => __( 'Note saved.', 'prohibited-terms-scanner' ) ] );
+    } // End save_note()
+
+
+    /**
+     * Run a full external links scan (single pass, no batching)
+     *
+     * @return void
+     */
+    public function run_external_links_scan() {
+        check_ajax_referer( 'ptscanner_nonce', 'nonce' );
+
+        if ( ! current_user_can( 'manage_options' ) ) {
+            $this->send_error( [ 'message' => __( 'Permission denied.', 'prohibited-terms-scanner' ) ] );
+            return;
+        }
+
+        $result = ExternalLinksScanner::instance()->run_full_scan();
+
+        $this->send_success( $result );
+    } // End run_external_links_scan()
+
+
+    /**
+     * Get a page of external links for rendering
+     *
+     * @return void
+     */
+    public function get_external_links() {
+        check_ajax_referer( 'ptscanner_nonce', 'nonce' );
+
+        if ( ! $this->current_user_can_scan() ) {
+            $this->send_error( [ 'message' => __( 'Permission denied.', 'prohibited-terms-scanner' ) ] );
+            return;
+        }
+
+        $page   = isset( $_POST[ 'page' ] ) ? absint( wp_unslash( $_POST[ 'page' ] ) ) : 1;
+        $filter = isset( $_POST[ 'filter' ] ) ? sanitize_key( wp_unslash( $_POST[ 'filter' ] ) ) : 'all';
+        $filter = in_array( $filter, [ 'all', 'flagged' ], true ) ? $filter : 'all';
+
+        $data = ExternalLinksDB::instance()->get_page( max( 1, $page ), 50, $filter );
+
+        foreach ( $data[ 'rows' ] as &$row ) {
+            $row[ 'source_title' ] = html_entity_decode( get_the_title( $row[ 'source_id' ] ), ENT_QUOTES, 'UTF-8' );
+            $row[ 'source_link' ]  = get_permalink( $row[ 'source_id' ] );
+            $row[ 'anchor_text' ]  = html_entity_decode( $row[ 'anchor_text' ], ENT_QUOTES, 'UTF-8' );
+        }
+
+        $this->send_success( $data );
+    } // End get_external_links()
+
+
+    /**
+     * Save (or clear) a note on an external link row
+     *
+     * @return void
+     */
+    public function save_external_link_note() {
+        check_ajax_referer( 'ptscanner_nonce', 'nonce' );
+
+        if ( ! $this->current_user_can_scan() ) {
+            $this->send_error( [ 'message' => __( 'Permission denied.', 'prohibited-terms-scanner' ) ] );
+            return;
+        }
+
+        $id   = isset( $_POST[ 'id' ] ) ? absint( wp_unslash( $_POST[ 'id' ] ) ) : 0;
+        $note = isset( $_POST[ 'note' ] ) ? sanitize_textarea_field( wp_unslash( $_POST[ 'note' ] ) ) : '';
+
+        if ( ! $id ) {
+            $this->send_error( [ 'message' => __( 'Invalid request.', 'prohibited-terms-scanner' ) ] );
+            return;
+        }
+
+        $updated = ExternalLinksDB::instance()->update_note( $id, $note );
+
+        if ( ! $updated ) {
+            $this->send_error( [ 'message' => __( 'Could not save note.', 'prohibited-terms-scanner' ) ] );
+            return;
+        }
+
+        $this->send_success( [ 'message' => __( 'Note saved.', 'prohibited-terms-scanner' ) ] );
+    } // End save_external_link_note()
+
+
+    /**
+     * Save the duration of the most recently completed/cancelled scan
+     *
+     * @return void
+     */
+    public function save_scan_duration() {
+        check_ajax_referer( 'ptscanner_nonce', 'nonce' );
+
+        if ( ! $this->current_user_can_scan() ) {
+            $this->send_error( [ 'message' => __( 'Permission denied.', 'prohibited-terms-scanner' ) ] );
+            return;
+        }
+
+        $seconds = isset( $_POST[ 'seconds' ] ) ? absint( wp_unslash( $_POST[ 'seconds' ] ) ) : 0;
+
+        update_option( 'ptscanner_last_scan_duration', $seconds, false );
+        update_option( 'ptscanner_last_scan_time', current_time( 'mysql' ), false );
+
+        $this->send_success( [ 'message' => __( 'Duration saved.', 'prohibited-terms-scanner' ) ] );
+    } // End save_scan_duration()
+
+
+    /**
+     * Check whether a media attachment is used anywhere on the site
+     *
+     * @return void
+     */
+    public function check_media_usage() {
+        check_ajax_referer( 'ptscanner_nonce', 'nonce' );
+
+        if ( ! $this->current_user_can_scan() ) {
+            $this->send_error( [ 'message' => __( 'Permission denied.', 'prohibited-terms-scanner' ) ] );
+            return;
+        }
+
+        $attachment_id = isset( $_POST[ 'attachment_id' ] ) ? absint( wp_unslash( $_POST[ 'attachment_id' ] ) ) : 0;
+
+        if ( ! $attachment_id ) {
+            $this->send_error( [ 'message' => __( 'Invalid request.', 'prohibited-terms-scanner' ) ] );
+            return;
+        }
+
+        $result = PagesList::instance()->check_media_usage( $attachment_id );
+
+        $this->send_success( $result );
+    } // End check_media_usage()
 
 }
 

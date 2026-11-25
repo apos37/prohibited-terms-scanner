@@ -89,6 +89,15 @@ class AdminMenu {
             [ $this, 'render_omitted_page' ]
         );
 
+        $this->screen_hooks[ 'external_links' ] = add_submenu_page(
+            $textdomain,
+            __( 'Prohibited Terms Scanner > External Links', 'prohibited-terms-scanner' ),
+            __( 'External Links', 'prohibited-terms-scanner' ),
+            'manage_options',
+            $textdomain . '_external_links',
+            [ $this, 'render_external_links_page' ]
+        );
+
         $this->screen_hooks[ 'settings' ] = add_submenu_page(
             $textdomain,
             __( 'Prohibited Terms Scanner > Settings', 'prohibited-terms-scanner' ),
@@ -239,6 +248,17 @@ class AdminMenu {
             );
         }
 
+        // External Links page.
+        if ( $current_screen->id === $this->screen_hooks[ 'external_links' ] ) {
+            wp_enqueue_script(
+                $textdomain . '-external-links',
+                Bootstrap::url( 'inc/js/external-links.js' ),
+                [ $textdomain . '-core' ],
+                $script_version,
+                true
+            );
+        }
+
         // Settings page.
         if ( $current_screen->id === $this->screen_hooks[ 'settings' ] ) {
             wp_enqueue_script(
@@ -300,7 +320,13 @@ class AdminMenu {
         $page   = isset( $_GET[ 'paged' ] ) ? absint( wp_unslash( $_GET[ 'paged' ] ) ) : 1; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
         $page   = max( 1, $page );
 
-        $data = ResultsPageData::instance()->get_page( $status, $page );
+        $term_filter     = isset( $_GET[ 'term_filter' ] ) ? sanitize_text_field( wp_unslash( $_GET[ 'term_filter' ] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+        $location_filter = isset( $_GET[ 'location_filter' ] ) ? sanitize_text_field( wp_unslash( $_GET[ 'location_filter' ] ) ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+
+        $data = ResultsPageData::instance()->get_page( $status, $page, $term_filter, $location_filter );
+
+        $data[ 'distinct_terms' ]     = DB::instance()->get_distinct_terms( $status );
+        $data[ 'distinct_locations' ] = DB::instance()->get_distinct_location_combos( $status );
 
         require Bootstrap::path( 'views/results-page.php' );
     } // End render_results_page()
@@ -362,6 +388,20 @@ class AdminMenu {
 
         require Bootstrap::path( 'views/errors-page.php' );
     } // End render_errors_page()
+
+
+    /**
+     * Render: External Links page
+     *
+     * @return void
+     */
+    public function render_external_links_page() {
+        if ( ! current_user_can( 'manage_options' ) ) {
+            return;
+        }
+
+        require Bootstrap::path( 'views/external-links-page.php' );
+    } // End render_external_links_page()
 
 }
 

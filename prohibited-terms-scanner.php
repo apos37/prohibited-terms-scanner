@@ -37,13 +37,17 @@ final class Bootstrap {
         'inc/db.php',
         'inc/type-registry.php',
         'inc/settings.php',
+        'inc/external-links-db.php',
+        'inc/external-links-scanner.php',
         'inc/scanner.php',
         'inc/ajax.php',
         'inc/hooks-warning.php',
         'inc/results-page-data.php',
         'inc/front-end.php',
+        'inc/pages-list.php',
         'inc/cron.php',
         'inc/integrations/eri-file-library.php',
+        'inc/integrations/role-visibility.php',
     ];
 
 

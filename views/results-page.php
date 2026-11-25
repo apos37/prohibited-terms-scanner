@@ -11,10 +11,12 @@ namespace PluginRx\ProhibitedTermsScanner;
 
 if ( ! defined( 'ABSPATH' ) ) exit;
 
-$ptscanner_textdomain  = Bootstrap::textdomain();
-$ptscanner_base_url    = admin_url( 'admin.php?page=' . $ptscanner_textdomain . '_results' );
-$ptscanner_flagged_url = add_query_arg( 'status', 'flagged', $ptscanner_base_url );
-$ptscanner_ignored_url = add_query_arg( 'status', 'ignored', $ptscanner_base_url );
+$ptscanner_textdomain      = Bootstrap::textdomain();
+$ptscanner_base_url        = admin_url( 'admin.php?page=' . $ptscanner_textdomain . '_results' );
+$ptscanner_flagged_url     = add_query_arg( 'status', 'flagged', $ptscanner_base_url );
+$ptscanner_ignored_url     = add_query_arg( 'status', 'ignored', $ptscanner_base_url );
+$ptscanner_term_filter     = isset( $_GET[ 'term_filter' ] ) ? sanitize_text_field( wp_unslash( $_GET[ 'term_filter' ] ) ) : '';
+$ptscanner_location_filter = isset( $_GET[ 'location_filter' ] ) ? sanitize_key( wp_unslash( $_GET[ 'location_filter' ] ) ) : '';
 ?>
 <div class="wrap ptscanner-wrap ptscanner-results-page">
     <header class="ptscanner-header">
@@ -26,19 +28,69 @@ $ptscanner_ignored_url = add_query_arg( 'status', 'ignored', $ptscanner_base_url
         </p>
     </header>
 
-    <div class="ptscanner-clear-all-wrap">
-        <ul class="subsubsub">
-            <li>
-                <a href="<?php echo esc_url( $ptscanner_flagged_url ); ?>" class="<?php echo 'flagged' === $status ? 'current' : ''; ?>">
-                    <?php esc_html_e( 'Flagged', 'prohibited-terms-scanner' ); ?>
-                </a> |
-            </li>
-            <li>
-                <a href="<?php echo esc_url( $ptscanner_ignored_url ); ?>" class="<?php echo 'ignored' === $status ? 'current' : ''; ?>">
-                    <?php esc_html_e( 'Marked as OK', 'prohibited-terms-scanner' ); ?>
-                </a>
-            </li>
-        </ul>
+    <details class="ptscanner-terms-accordion" id="ptscanner-summary-accordion">
+        <summary><?php esc_html_e( 'Summary by Term', 'prohibited-terms-scanner' ); ?></summary>
+        <table class="ptscanner-front-table">
+            <thead>
+                <tr>
+                    <th><?php esc_html_e( 'Term/Phrase', 'prohibited-terms-scanner' ); ?></th>
+                    <th><?php esc_html_e( 'Occurrences Found', 'prohibited-terms-scanner' ); ?></th>
+                </tr>
+            </thead>
+            <tbody id="ptscanner-persistent-summary-body">
+                <tr><td colspan="2"><?php esc_html_e( 'Loading…', 'prohibited-terms-scanner' ); ?></td></tr>
+            </tbody>
+        </table>
+    </details>
+
+    <ul class="subsubsub">
+        <li>
+            <a href="<?php echo esc_url( $ptscanner_flagged_url ); ?>" class="<?php echo 'flagged' === $status ? 'current' : ''; ?>">
+                <?php
+                printf(
+                    /* translators: %d: number of flagged results */
+                    esc_html__( 'Flagged (%d)', 'prohibited-terms-scanner' ),
+                    absint( $data[ 'total_flagged' ] )
+                );
+                ?>
+            </a> |
+        </li>
+        <li>
+            <a href="<?php echo esc_url( $ptscanner_ignored_url ); ?>" class="<?php echo 'ignored' === $status ? 'current' : ''; ?>">
+                <?php
+                printf(
+                    /* translators: %d: number of ignored results */
+                    esc_html__( 'Marked as OK (%d)', 'prohibited-terms-scanner' ),
+                    absint( $data[ 'total_ignored' ] )
+                );
+                ?>
+            </a>
+        </li>
+    </ul>
+
+    <div class="ptscanner-clear-all-wrap ptscanner-front-filters-row">
+        <form method="get" class="ptscanner-front-filters">
+            <input type="hidden" name="page" value="<?php echo esc_attr( $ptscanner_textdomain . '_results' ); ?>">
+            <input type="hidden" name="status" value="<?php echo esc_attr( $status ); ?>">
+
+            <select name="term_filter" onchange="this.form.submit()">
+                <option value=""><?php esc_html_e( 'All Terms', 'prohibited-terms-scanner' ); ?></option>
+                <?php foreach ( $data[ 'distinct_terms' ] as $ptscanner_term_option ) : ?>
+                    <option value="<?php echo esc_attr( $ptscanner_term_option ); ?>" <?php selected( $ptscanner_term_filter, $ptscanner_term_option ); ?>>
+                        <?php echo esc_html( $ptscanner_term_option ); ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+
+            <select name="location_filter" onchange="this.form.submit()">
+                <option value=""><?php esc_html_e( 'All Locations', 'prohibited-terms-scanner' ); ?></option>
+                <?php foreach ( $data[ 'distinct_locations' ] as $ptscanner_location_slug => $ptscanner_location_label ) : ?>
+                    <option value="<?php echo esc_attr( $ptscanner_location_slug ); ?>" <?php selected( $ptscanner_location_filter, $ptscanner_location_slug ); ?>>
+                        <?php echo esc_html( $ptscanner_location_label ); ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </form>
 
         <?php if ( ! empty( $data[ 'rows' ] ) ) : ?>
             <button type="button" class="button" id="ptscanner-clear-all" data-status="<?php echo esc_attr( $status ); ?>">
@@ -54,6 +106,7 @@ $ptscanner_ignored_url = add_query_arg( 'status', 'ignored', $ptscanner_base_url
                 <th><?php esc_html_e( 'Context', 'prohibited-terms-scanner' ); ?></th>
                 <th><?php esc_html_e( 'Location', 'prohibited-terms-scanner' ); ?></th>
                 <th><?php esc_html_e( 'Source', 'prohibited-terms-scanner' ); ?></th>
+                <th><?php esc_html_e( 'Note', 'prohibited-terms-scanner' ); ?></th>
                 <th><?php esc_html_e( 'Date', 'prohibited-terms-scanner' ); ?></th>
                 <th><?php esc_html_e( 'Actions', 'prohibited-terms-scanner' ); ?></th>
             </tr>
@@ -61,7 +114,7 @@ $ptscanner_ignored_url = add_query_arg( 'status', 'ignored', $ptscanner_base_url
         <tbody>
             <?php if ( empty( $data[ 'rows' ] ) ) : ?>
                 <tr>
-                    <td colspan="6"><?php esc_html_e( 'No results found.', 'prohibited-terms-scanner' ); ?></td>
+                    <td colspan="7"><?php esc_html_e( 'No results found.', 'prohibited-terms-scanner' ); ?></td>
                 </tr>
             <?php else : ?>
                 <?php foreach ( $data[ 'rows' ] as $ptscanner_row ) : ?>
@@ -92,9 +145,23 @@ $ptscanner_ignored_url = add_query_arg( 'status', 'ignored', $ptscanner_base_url
                             <a href="#" class="ptscanner-toggle-omit" data-id="<?php echo esc_attr( $ptscanner_row[ 'source_id' ] ); ?>" data-type="<?php echo esc_attr( $ptscanner_row[ 'source_type' ] ); ?>" data-omitted="0">
                                 <?php esc_html_e( 'Omit Source', 'prohibited-terms-scanner' ); ?>
                             </a>
+                            <div class="ptscanner-media-usage-result" id="ptscanner-media-usage-<?php echo absint( $ptscanner_row[ 'id' ] ); ?>" style="margin-top:8px;"></div>
+                        </td>
+                        <td>
+                            <textarea class="ptscanner-note-field" data-id="<?php echo absint( $ptscanner_row[ 'id' ] ); ?>" rows="2" placeholder="<?php esc_attr_e( 'Add a note…', 'prohibited-terms-scanner' ); ?>"><?php echo esc_textarea( $ptscanner_row[ 'note' ] ?? '' ); ?></textarea>
+                            <br>
+                            <button type="button" class="button-link ptscanner-save-note" data-id="<?php echo absint( $ptscanner_row[ 'id' ] ); ?>">
+                                <?php esc_html_e( 'Save Note', 'prohibited-terms-scanner' ); ?>
+                            </button>
                         </td>
                         <td><?php echo esc_html( mysql2date( 'Y-m-d g:i A', $ptscanner_row[ 'created_at' ] ) ); ?></td>
                         <td class="ptscanner-row-actions">
+                            <?php if ( in_array( $ptscanner_row[ 'location_type' ], [ 'filename', 'alt_text' ], true ) ) : ?>
+                                <button type="button" class="button-link ptscanner-check-media-usage" data-id="<?php echo absint( $ptscanner_row[ 'source_id' ] ); ?>">
+                                    <?php esc_html_e( 'Check Usage', 'prohibited-terms-scanner' ); ?>
+                                </button>
+                                <br>
+                            <?php endif; ?>
                             <?php if ( 'flagged' === $ptscanner_row[ 'status' ] ) : ?>
                                 <button type="button" class="button-link ptscanner-mark-ok" data-id="<?php echo absint( $ptscanner_row[ 'id' ] ); ?>">
                                     <?php esc_html_e( 'Mark as OK', 'prohibited-terms-scanner' ); ?>
@@ -115,12 +182,23 @@ $ptscanner_ignored_url = add_query_arg( 'status', 'ignored', $ptscanner_base_url
     </table>
 
     <?php if ( $data[ 'total_pages' ] > 1 ) : ?>
+        <?php
+        $ptscanner_pagination_base = add_query_arg( 'status', $status, $ptscanner_base_url );
+
+        if ( '' !== $ptscanner_term_filter ) {
+            $ptscanner_pagination_base = add_query_arg( 'term_filter', $ptscanner_term_filter, $ptscanner_pagination_base );
+        }
+
+        if ( '' !== $ptscanner_location_filter ) {
+            $ptscanner_pagination_base = add_query_arg( 'location_filter', $ptscanner_location_filter, $ptscanner_pagination_base );
+        }
+        ?>
         <div class="tablenav">
             <div class="tablenav-pages">
                 <?php
                 echo wp_kses_post(
                     paginate_links( [
-                        'base'      => add_query_arg( 'paged', '%#%', add_query_arg( 'status', $status, $ptscanner_base_url ) ),
+                        'base'      => add_query_arg( 'paged', '%#%', $ptscanner_pagination_base ),
                         'format'    => '',
                         'current'   => $page,
                         'total'     => $data[ 'total_pages' ],

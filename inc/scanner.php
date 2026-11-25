@@ -75,7 +75,8 @@ class Scanner {
             return $matches;
         }
 
-        $plain_text = wp_strip_all_tags( $text );
+        $plain_text = wp_strip_all_tags( str_replace( '>', '> ', $text ) );
+        $plain_text = preg_replace( '/\s+/', ' ', $plain_text );
         $padding    = Settings::instance()->get_snippet_padding();
 
         foreach ( $terms as $term_data ) {
@@ -236,7 +237,7 @@ class Scanner {
      * @param int    $post_id
      * @return string
      */
-    private function safe_do_shortcode( $content, $post_id ) : string {
+    public function safe_do_shortcode( $content, $post_id ) : string {
         $previous_handler = set_error_handler( function ( $errno, $errstr ) { // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_set_error_handler
             throw new \ErrorException( esc_html( $errstr ), 0, absint( $errno ) );
         } );
@@ -411,7 +412,11 @@ class Scanner {
      * @return array
      */
     private function scan_tax_field( $terms, $offset, $limit, $field ) : array {
-        $taxonomies = get_taxonomies( [ 'public' => true ] );
+        $taxonomies = Settings::instance()->get_enabled_taxonomies();
+
+        if ( empty( $taxonomies ) ) {
+            return [ 'rows' => [], 'done' => true ];
+        }
 
         $term_objects = get_terms( [
             'taxonomy'   => $taxonomies,

@@ -15,6 +15,29 @@ $ptscanner_settings = Settings::instance();
         <p class="description"><?php esc_html_e( 'Paste a list of terms or phrases to search for across your site.', 'prohibited-terms-scanner' ); ?></p>
     </header>
 
+    <?php
+        $ptscanner_last_scan_seconds = get_option( 'ptscanner_last_scan_duration', 0 );
+        $ptscanner_last_scan_time    = get_option( 'ptscanner_last_scan_time', '' );
+        ?>
+        <?php if ( $ptscanner_last_scan_seconds > 0 ) : ?>
+            <p class="description">
+                <?php
+                $ptscanner_minutes = floor( $ptscanner_last_scan_seconds / 60 );
+                $ptscanner_seconds = $ptscanner_last_scan_seconds % 60;
+                $ptscanner_duration_text = $ptscanner_minutes > 0
+                    ? sprintf( '%dm %ds', $ptscanner_minutes, $ptscanner_seconds )
+                    : sprintf( '%ds', $ptscanner_seconds );
+
+                printf(
+                    /* translators: 1: duration, 2: date/time */
+                    esc_html__( 'Last scan took %1$s, completed %2$s.', 'prohibited-terms-scanner' ),
+                    esc_html( $ptscanner_duration_text ),
+                    esc_html( mysql2date( 'Y-m-d g:i A', $ptscanner_last_scan_time ) )
+                );
+                ?>
+            </p>
+        <?php endif; ?>
+
     <?php if ( ! class_exists( '\ZipArchive' ) ) : ?>
         <div class="notice notice-warning inline ptscanner-ziparchive-notice">
             <p>
@@ -73,21 +96,11 @@ $ptscanner_settings = Settings::instance();
                 <span class="ptscanner-progress-spinner"></span>
                 <span id="ptscanner-progress-label-text"></span>
             </p>
+            <p class="ptscanner-elapsed-time" id="ptscanner-elapsed-time" style="display:none;">
+                <?php esc_html_e( 'Elapsed: ', 'prohibited-terms-scanner' ); ?><span id="ptscanner-elapsed-time-text">0s</span>
+            </p>
             <ul class="ptscanner-scan-errors" id="ptscanner-scan-errors"></ul>
         </div>
-    </div>
-
-    <div class="ptscanner-summary" id="ptscanner-summary" style="display:none;">
-        <h2><?php esc_html_e( 'Summary', 'prohibited-terms-scanner' ); ?></h2>
-        <table class="wp-list-table widefat striped">
-            <thead>
-                <tr>
-                    <th><?php esc_html_e( 'Term/Phrase', 'prohibited-terms-scanner' ); ?></th>
-                    <th><?php esc_html_e( 'Occurrences Found', 'prohibited-terms-scanner' ); ?></th>
-                </tr>
-            </thead>
-            <tbody id="ptscanner-summary-body"></tbody>
-        </table>
     </div>
 
     <p>

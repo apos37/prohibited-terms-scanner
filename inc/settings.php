@@ -16,6 +16,7 @@ class Settings {
     private const OPT_TERMS            = 'ptscanner_terms';
     private const OPT_LOCATION_TYPES   = 'ptscanner_location_types_enabled';
     private const OPT_POST_TYPES       = 'ptscanner_post_types_enabled';
+    private const OPT_TAXONOMIES       = 'ptscanner_taxonomies_enabled';
     private const OPT_BATCH_SIZE       = 'ptscanner_batch_size';
     private const OPT_SNIPPET_PADDING  = 'ptscanner_snippet_padding';
     private const OPT_DEFAULT_CASE     = 'ptscanner_default_case_sensitive';
@@ -23,9 +24,9 @@ class Settings {
     private const OPT_WARNING_TERMS    = 'ptscanner_warning_terms';
     private const OPT_WARNING_ENABLED  = 'ptscanner_warning_enabled';
     private const OPT_SHORTCODE_ROLES  = 'ptscanner_shortcode_roles';
-    private const OPT_PDF_PAGE_LOOKUP = 'ptscanner_pdf_page_lookup';
-    private const OPT_CRON_ENABLED    = 'ptscanner_cron_enabled';
-    private const OPT_CRON_FREQUENCY  = 'ptscanner_cron_frequency';
+    private const OPT_PDF_PAGE_LOOKUP  = 'ptscanner_pdf_page_lookup';
+    private const OPT_CRON_ENABLED     = 'ptscanner_cron_enabled';
+    private const OPT_CRON_FREQUENCY   = 'ptscanner_cron_frequency';
 
 
     /**
@@ -259,6 +260,22 @@ class Settings {
 
 
     /**
+     * Get enabled taxonomy slugs for scanning
+     *
+     * @return array
+     */
+    public function get_enabled_taxonomies() : array {
+        $saved = get_option( self::OPT_TAXONOMIES, null );
+
+        if ( null === $saved ) {
+            return array_keys( get_taxonomies( [ 'public' => true ] ) );
+        }
+
+        return is_array( $saved ) ? $saved : [];
+    } // End get_enabled_taxonomies()
+
+
+    /**
      * Get batch size
      *
      * @return int
@@ -347,6 +364,10 @@ class Settings {
         // Post types.
         $post_types = isset( $_POST[ 'post_types' ] ) ? array_map( 'sanitize_key', wp_unslash( (array) $_POST[ 'post_types' ] ) ) : [];
         update_option( self::OPT_POST_TYPES, $post_types, false );
+
+        // Taxonomies.
+        $taxonomies = isset( $_POST[ 'taxonomies' ] ) ? array_map( 'sanitize_key', wp_unslash( (array) $_POST[ 'taxonomies' ] ) ) : [];
+        update_option( self::OPT_TAXONOMIES, $taxonomies, false );
 
         // Batch size.
         $batch_size = isset( $_POST[ 'batch_size' ] ) ? absint( wp_unslash( $_POST[ 'batch_size' ] ) ) : 20;
