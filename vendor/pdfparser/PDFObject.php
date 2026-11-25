@@ -917,7 +917,7 @@ class PDFObject
                 return new Encoding($document, $header, $content, $config);
             case 'Font':
                 $subtype = $header->get('Subtype')->getContent();
-                $classname = '\\Smalot\\PdfParser\\Font\\Font' . $subtype;
+                $classname = '\\PTScannerVendor\\Smalot\\PdfParser\\Font\\Font' . $subtype;
                 if (\class_exists($classname)) {
                     return new $classname($document, $header, $content, $config);
                 }

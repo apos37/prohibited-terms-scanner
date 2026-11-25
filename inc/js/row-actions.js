@@ -6,7 +6,7 @@ jQuery( function ( $ ) {
         const link = $( this );
         const id = link.data( 'id' );
         const type = link.data( 'type' );
-        const isOmitted = link.data( 'omitted' ) == 1;
+        const isOmitted = '1' === String( link.data( 'omitted' ) );
 
         $.post( ptscanner_row_actions_data.ajaxUrl, {
             action: 'ptscanner_toggle_omit',
@@ -16,7 +16,7 @@ jQuery( function ( $ ) {
             omit: isOmitted ? '0' : '1',
         } ).done( function ( response ) {
             if ( ! response.success ) {
-                alert( response.data.message || 'Could not update.' );
+                alert( ( response.data && response.data.message ) || ptscanner_row_actions_data.labels.updateFailed );
                 return;
             }
 
@@ -24,7 +24,7 @@ jQuery( function ( $ ) {
             link.data( 'omitted', nowOmitted ? '1' : '0' );
             link.text( nowOmitted ? ptscanner_row_actions_data.labels.unomit : ptscanner_row_actions_data.labels.omit );
         } ).fail( function () {
-            alert( 'Request failed.' );
+            alert( ptscanner_row_actions_data.labels.requestFailed );
         } );
     } );
 

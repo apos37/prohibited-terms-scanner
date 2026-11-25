@@ -186,7 +186,7 @@ class HooksWarning {
             return;
         }
 
-        $matches = Scanner::instance()->match_terms( $content, $terms );
+        $matches = Scanner::instance()->match_terms( $content, $terms, false );
 
         if ( empty( $matches ) ) {
             return;
@@ -242,7 +242,7 @@ class HooksWarning {
             return;
         }
 
-        $matches = Scanner::instance()->match_terms( $content, $terms );
+        $matches = Scanner::instance()->match_terms( $content, $terms, false );
 
         if ( empty( $matches ) ) {
             return;

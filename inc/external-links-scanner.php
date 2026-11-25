@@ -49,13 +49,14 @@ class ExternalLinksScanner {
         }
 
         $query = new \WP_Query( [
-            'post_type'      => array_values( $post_types ),
-            'post_status'    => 'publish',
-            'posts_per_page' => -1,
-            'orderby'        => 'ID',
-            'order'          => 'ASC',
-            'fields'         => 'ids',
-            'no_found_rows'  => true,
+            'post_type'        => array_values( $post_types ),
+            'post_status'      => 'publish',
+            'posts_per_page'   => -1,
+            'orderby'          => 'ID',
+            'order'            => 'ASC',
+            'fields'           => 'ids',
+            'no_found_rows'    => true,
+            'suppress_filters' => true,
         ] );
 
         $terms      = Settings::instance()->get_terms();

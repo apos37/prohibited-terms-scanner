@@ -103,7 +103,7 @@ class ResultsPageData {
         $rows_args = array_merge( $query_args, [ $this->per_page, $offset ] );
 
         $rows = $wpdb->get_results( // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-            $wpdb->prepare(
+            $wpdb->prepare( // phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber -- $rows_args holds one value per placeholder, built alongside $extra_where.
                 "SELECT r.* FROM {$table_name} r {$join} WHERE r.status = %s{$extra_where} ORDER BY r.created_at DESC LIMIT %d OFFSET %d", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
                 $rows_args
             ),
@@ -163,9 +163,9 @@ class ResultsPageData {
             }
         }
 
-        $row[ 'source_title' ]   = $this->resolve_source_title( $row );
-        
+        $row[ 'source_title' ]        = $this->resolve_source_title( $row );
         $row[ 'context_highlighted' ] = $this->highlight_term( $row[ 'context_snippet' ], $row[ 'term' ] );
+        $row[ 'date_display' ]        = mysql2date( get_option( 'date_format' ) . ' ' . get_option( 'time_format' ), $row[ 'created_at' ] );
 
         // Taxonomy term links point to admin-only management screens for some
         // registered taxonomies, or may not resolve to a public archive at all

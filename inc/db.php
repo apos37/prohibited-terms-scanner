@@ -428,16 +428,18 @@ class DB {
         $table_name = esc_sql( $this->table() );
         $posts_table = $wpdb->posts;
 
-        $rows = $wpdb->get_results( // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+        // phpcs:disable WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table names only; values use placeholders.
+        $rows = $wpdb->get_results( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- custom table, results change on every scan.
             $wpdb->prepare(
                 "SELECT DISTINCT r.location_type, p.post_type
                 FROM {$table_name} r
                 LEFT JOIN {$posts_table} p ON r.source_id = p.ID AND r.source_type = 'post'
-                WHERE r.status = %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+                WHERE r.status = %s",
                 $status
             ),
             ARRAY_A
         );
+        // phpcs:enable WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
         $combos = [];
         $post_type_suffixed = [ 'title', 'content', 'excerpt' ];

@@ -1,5 +1,8 @@
 jQuery( function ( $ ) {
 
+    const strings = ptscanner_data.strings;
+    const sprintf = wp.i18n.sprintf;
+
     /**
      * Results controller
      *
@@ -29,8 +32,9 @@ jQuery( function ( $ ) {
                 this.loadSummary();
             }
 
+            $( '.ptscanner-filter-submit' ).prop( 'hidden', true );
+
             if ( $( '#ptscanner-front-results' ).length ) {
-                $( '.ptscanner-front-tab[data-status="flagged"]' ).addClass( 'active' );
                 this.loadFrontResults();
             }
         }, // End init()
@@ -39,30 +43,29 @@ jQuery( function ( $ ) {
          * Bind DOM events
          */
         bindEvents: function () {
-            $( document ).on( 'click', '.ptscanner-mark-ok, .ptscanner-front-mark-ok', ( event ) => {
-                const isAdmin = $( event.currentTarget ).hasClass( 'ptscanner-mark-ok' );
-                this.setStatus( event.currentTarget, 'ignored', isAdmin );
+            $( document ).on( 'click', '.ptscanner-mark-ok', ( event ) => {
+                this.setStatus( event.currentTarget, 'ignored' );
             } );
 
-            $( document ).on( 'click', '.ptscanner-mark-flagged, .ptscanner-front-mark-flagged', ( event ) => {
-                const isAdmin = $( event.currentTarget ).hasClass( 'ptscanner-mark-flagged' );
-                this.setStatus( event.currentTarget, 'flagged', isAdmin );
+            $( document ).on( 'click', '.ptscanner-mark-flagged', ( event ) => {
+                this.setStatus( event.currentTarget, 'flagged' );
             } );
 
-            $( document ).on( 'click', '.ptscanner-clear-result, .ptscanner-front-clear-result', ( event ) => {
-                const isAdmin = $( event.currentTarget ).hasClass( 'ptscanner-clear-result' );
-                this.clearResult( event.currentTarget, isAdmin );
+            $( document ).on( 'click', '.ptscanner-clear-result', ( event ) => {
+                this.clearResult( event.currentTarget );
             } );
 
             $( document ).on( 'click', '.ptscanner-front-tab', ( event ) => {
-                const tab = $( event.currentTarget );
-
-                $( '.ptscanner-front-tab' ).removeClass( 'active' );
-                tab.addClass( 'active' );
+                const tab = this.setCurrentTab( event.currentTarget );
 
                 this.frontStatus = tab.data( 'status' );
                 this.frontPage = 1;
+                $( '#ptscanner-front-results' ).attr( 'data-status', this.frontStatus ).data( 'status', this.frontStatus );
                 this.loadFrontResults();
+            } );
+
+            $( document ).on( 'change', '.ptscanner-results-filters select', ( event ) => {
+                event.currentTarget.form.submit();
             } );
 
             $( document ).on( 'change', '#ptscanner-front-term-filter', ( event ) => {
@@ -77,23 +80,26 @@ jQuery( function ( $ ) {
                 this.loadFrontResults();
             } );
 
-            $( document ).on( 'click', '.ptscanner-front-page-link', ( event ) => {
+            $( document ).on( 'click', '#ptscanner-front-pagination .page-numbers', ( event ) => {
                 event.preventDefault();
-
-                const link = $( event.currentTarget );
-
-                if ( 'pages' === link.data( 'context' ) ) {
-                    this.frontPagesPage = link.data( 'page' );
-                    this.loadFrontPages();
-                    return;
-                }
-
-                this.frontPage = link.data( 'page' );
+                this.frontPage = $( event.currentTarget ).data( 'page' );
                 this.loadFrontResults();
             } );
 
+            $( document ).on( 'click', '#ptscanner-front-pages-pagination .page-numbers', ( event ) => {
+                event.preventDefault();
+                this.frontPagesPage = $( event.currentTarget ).data( 'page' );
+                this.loadFrontPages();
+            } );
+
+            $( document ).on( 'click', '#ptscanner-front-ext-links-pagination .page-numbers', ( event ) => {
+                event.preventDefault();
+                this.frontExtLinksPage = $( event.currentTarget ).data( 'page' );
+                this.loadFrontExtLinks();
+            } );
+
             $( document ).on( 'click', '#ptscanner-clear-errors', ( event ) => {
-                if ( ! confirm( 'Clear all logged errors?' ) ) {
+                if ( ! confirm( strings.confirmClearErrors ) ) {
                     return;
                 }
 
@@ -108,7 +114,7 @@ jQuery( function ( $ ) {
                         window.location.reload();
                     } else {
                         button.prop( 'disabled', false );
-                        alert( response.data.message || 'Could not clear errors.' );
+                        alert( this.errorMessage( response ) );
                     }
                 } );
             } );
@@ -116,9 +122,8 @@ jQuery( function ( $ ) {
             $( document ).on( 'click', '#ptscanner-clear-all', ( event ) => {
                 const button = $( event.currentTarget );
                 const status = button.data( 'status' );
-                const label = 'flagged' === status ? 'flagged results' : 'ignored results';
 
-                if ( ! confirm( 'Clear all ' + label + '? This cannot be undone.' ) ) {
+                if ( ! confirm( 'flagged' === status ? strings.confirmClearAllFlagged : strings.confirmClearAllIgnored ) ) {
                     return;
                 }
 
@@ -133,19 +138,18 @@ jQuery( function ( $ ) {
                         window.location.reload();
                     } else {
                         button.prop( 'disabled', false );
-                        alert( response.data.message || 'Could not clear results.' );
+                        alert( this.errorMessage( response ) );
                     }
                 } ).fail( () => {
                     button.prop( 'disabled', false );
-                    alert( ptscanner_data.strings.requestFailed || 'Request failed.' );
+                    alert( strings.requestFailed );
                 } );
             } );
 
             $( document ).on( 'click', '#ptscanner-front-clear-all', ( event ) => {
                 const status = this.frontStatus;
-                const label = 'flagged' === status ? 'flagged results' : 'ignored results';
 
-                if ( ! confirm( 'Clear all ' + label + '? This cannot be undone.' ) ) {
+                if ( ! confirm( 'flagged' === status ? strings.confirmClearAllFlagged : strings.confirmClearAllIgnored ) ) {
                     return;
                 }
 
@@ -162,11 +166,11 @@ jQuery( function ( $ ) {
                     if ( response.success ) {
                         this.loadFrontResults();
                     } else {
-                        alert( response.data.message || 'Could not clear results.' );
+                        alert( this.errorMessage( response ) );
                     }
                 } ).fail( () => {
                     button.prop( 'disabled', false );
-                    alert( ptscanner_data.strings.requestFailed || 'Request failed.' );
+                    alert( strings.requestFailed );
                 } );
             } );
 
@@ -184,7 +188,7 @@ jQuery( function ( $ ) {
                     if ( response.success ) {
                         row.fadeOut( 200, () => row.remove() );
                     } else {
-                        alert( response.data.message || 'Could not remove.' );
+                        alert( this.errorMessage( response ) );
                     }
                 } );
             } );
@@ -193,13 +197,13 @@ jQuery( function ( $ ) {
                 event.preventDefault();
 
                 const link = $( event.currentTarget );
-                const isOmitted = '1' === link.data( 'omitted' );
+                const isOmitted = '1' === String( link.data( 'omitted' ) );
                 const id = link.data( 'id' );
                 const type = link.data( 'type' );
                 const self = this;
 
                 if ( ! isOmitted ) {
-                    if ( ! confirm( 'Omit this source from all future scans? Existing flagged results for this source will also be cleared.' ) ) {
+                    if ( ! confirm( strings.confirmOmit ) ) {
                         return;
                     }
                 }
@@ -212,7 +216,7 @@ jQuery( function ( $ ) {
                     omit: isOmitted ? '0' : '1',
                 } ).done( ( response ) => {
                     if ( ! response.success ) {
-                        alert( response.data.message || 'Could not update.' );
+                        alert( this.errorMessage( response ) );
                         return;
                     }
 
@@ -229,21 +233,17 @@ jQuery( function ( $ ) {
                         } );
                     } else {
                         link.data( 'omitted', '0' );
-                        link.text( 'Omit' );
+                        link.text( strings.omitSource );
                     }
                 } );
             } );
 
             $( document ).on( 'click', '.ptscanner-front-main-tab', ( event ) => {
-                const tab = $( event.currentTarget );
-                const panel = tab.data( 'panel' );
+                const panel = this.setCurrentTab( event.currentTarget ).data( 'panel' );
 
-                $( '.ptscanner-front-main-tab' ).removeClass( 'active' );
-                tab.addClass( 'active' );
-
-                $( '#ptscanner-front-results' ).toggle( 'results' === panel );
-                $( '#ptscanner-front-pages' ).toggle( 'pages' === panel );
-                $( '#ptscanner-front-external-links' ).toggle( 'external-links' === panel );
+                $( '#ptscanner-front-results' ).prop( 'hidden', 'results' !== panel );
+                $( '#ptscanner-front-pages' ).prop( 'hidden', 'pages' !== panel );
+                $( '#ptscanner-front-external-links' ).prop( 'hidden', 'external-links' !== panel );
 
                 if ( 'pages' === panel ) {
                     this.loadFrontPages();
@@ -253,19 +253,8 @@ jQuery( function ( $ ) {
             } );
 
             $( document ).on( 'click', '.ptscanner-ext-links-front-filter-tab', ( event ) => {
-                const tab = $( event.currentTarget );
-
-                $( '.ptscanner-ext-links-front-filter-tab' ).removeClass( 'active' );
-                tab.addClass( 'active' );
-
-                this.frontExtLinksFilter = tab.data( 'filter' );
+                this.frontExtLinksFilter = this.setCurrentTab( event.currentTarget ).data( 'filter' );
                 this.frontExtLinksPage = 1;
-                this.loadFrontExtLinks();
-            } );
-
-            $( document ).on( 'click', '.ptscanner-front-ext-links-page-link', ( event ) => {
-                event.preventDefault();
-                this.frontExtLinksPage = $( event.currentTarget ).data( 'page' );
                 this.loadFrontExtLinks();
             } );
 
@@ -284,17 +273,13 @@ jQuery( function ( $ ) {
             } );
 
             $( document ).on( 'click', '.ptscanner-pages-toggle-omit', ( event ) => {
-                event.preventDefault();
-
                 const link = $( event.currentTarget );
                 const row = link.closest( 'tr' );
-                const spinner = row.find( '.ptscanner-inline-spinner' );
-                const isOmitted = '1' === link.data( 'omitted' );
+                const isOmitted = '1' === String( link.data( 'omitted' ) );
                 const id = link.data( 'id' );
                 const type = link.data( 'type' );
 
-                link.addClass( 'ptscanner-pending' );
-                spinner.addClass( 'ptscanner-spinner-active' );
+                link.prop( 'disabled', true );
 
                 $.post( ptscanner_data.ajaxUrl, {
                     action: 'ptscanner_toggle_omit',
@@ -303,22 +288,20 @@ jQuery( function ( $ ) {
                     type: type,
                     omit: isOmitted ? '0' : '1',
                 } ).done( ( response ) => {
-                    link.removeClass( 'ptscanner-pending' );
-                    spinner.removeClass( 'ptscanner-spinner-active' );
+                    link.prop( 'disabled', false );
 
                     if ( ! response.success ) {
-                        alert( response.data.message || 'Could not update.' );
+                        alert( this.errorMessage( response ) );
                         return;
                     }
 
                     const nowOmitted = ! isOmitted;
                     link.data( 'omitted', nowOmitted ? '1' : '0' );
-                    link.text( nowOmitted ? 'Un-Omit' : 'Omit Page' );
+                    link.text( nowOmitted ? strings.unomit : strings.omitPage );
                     row.toggleClass( 'ptscanner-row-omitted', nowOmitted );
                 } ).fail( () => {
-                    link.removeClass( 'ptscanner-pending' );
-                    spinner.removeClass( 'ptscanner-spinner-active' );
-                    alert( ptscanner_data.strings.requestFailed || 'Request failed.' );
+                    link.prop( 'disabled', false );
+                    alert( strings.requestFailed );
                 } );
             } );
 
@@ -354,19 +337,28 @@ jQuery( function ( $ ) {
                     spinner.remove();
 
                     if ( ! response.success ) {
-                        resultSpan.text( response.data.message || 'Error checking usage.' );
+                        resultSpan.text( this.errorMessage( response ) );
                         return;
                     }
 
+                    resultSpan.empty();
+
                     if ( ! response.data.used ) {
-                        resultSpan.html( '<strong style="color:#d63638;">Not used anywhere — safe to omit.</strong>' );
+                        resultSpan.append( $( '<strong class="ptscanner-media-unused"></strong>' ).text( strings.mediaNotUsed ) );
                     } else {
-                        const items = response.data.locations.map( ( loc ) => {
-                            const statusLabel = 'publish' === loc.status ? '' : ' <em>(' + loc.status + ')</em>';
-                            return '<li><a href="' + loc.link + '" target="_blank">' + loc.title + '</a>' + statusLabel + '</li>';
+                        const list = $( '<ul class="ptscanner-media-usage-list"></ul>' );
+
+                        response.data.locations.forEach( ( loc ) => {
+                            const item = $( '<li></li>' ).append( $( '<a target="_blank" rel="noopener noreferrer"></a>' ).attr( 'href', loc.link ).text( loc.title ) );
+
+                            if ( 'publish' !== loc.status ) {
+                                item.append( ' ', $( '<em></em>' ).text( '(' + loc.status + ')' ) );
+                            }
+
+                            list.append( item );
                         } );
 
-                        resultSpan.html( '<strong>Used on:</strong><ul class="ptscanner-media-usage-list">' + items.join( '' ) + '</ul>' );
+                        resultSpan.append( $( '<strong></strong>' ).text( strings.mediaUsedOn ), list );
                     }
 
                     resultSpan.addClass( 'ptscanner-media-usage-highlight' );
@@ -374,7 +366,7 @@ jQuery( function ( $ ) {
                 } ).fail( () => {
                     button.prop( 'disabled', false );
                     spinner.remove();
-                    resultSpan.text( ptscanner_data.strings.requestFailed || 'Request failed.' );
+                    resultSpan.text( strings.requestFailed );
                 } );
             } );
         }, // End bindEvents()
@@ -392,7 +384,7 @@ jQuery( function ( $ ) {
                 body.empty();
 
                 if ( ! response.success || ! response.data.summary.length ) {
-                    body.html( '<tr><td colspan="2">No flagged terms.</td></tr>' );
+                    this.messageRow( body, 2, strings.noFlaggedTerms );
                     return;
                 }
 
@@ -415,7 +407,7 @@ jQuery( function ( $ ) {
          * front-end shortcode (which has no such badge).
          */
         decrementMenuBadge: function () {
-            const badges = document.querySelectorAll( '#adminmenu .update-plugins .update-count' );
+            const badges = document.querySelectorAll( '#adminmenu .update-plugins .update-count, #ptscanner-header .ptscanner-tab-count' );
 
             badges.forEach( function ( badge ) {
                 const current = parseInt( badge.textContent, 10 );
@@ -428,10 +420,41 @@ jQuery( function ( $ ) {
                 badge.textContent = next;
 
                 if ( 0 === next ) {
-                    badge.closest( '.update-plugins' ).remove();
+                    ( badge.closest( '.update-plugins' ) || badge ).remove();
                 }
             } );
         }, // End decrementMenuBadge()
+
+
+        /**
+         * Set a status tab's count and relabel it ("Flagged (3)")
+         *
+         * @param {string} status 'flagged' or 'ignored'
+         * @param {number} count
+         */
+        setStatusCount: function ( status, count ) {
+            const label = 'flagged' === status ? strings.flaggedCount : strings.ignoredCount;
+            const total = Math.max( 0, parseInt( count, 10 ) || 0 );
+
+            $( '[data-count-status="' + status + '"]' ).attr( 'data-count', total ).text( sprintf( label, total ) );
+        }, // End setStatusCount()
+
+
+        /**
+         * Change a status tab's count by a delta
+         *
+         * @param {string} status 'flagged' or 'ignored'
+         * @param {number} delta
+         */
+        adjustStatusCount: function ( status, delta ) {
+            const tab = $( '[data-count-status="' + status + '"]' ).first();
+
+            if ( ! tab.length ) {
+                return;
+            }
+
+            this.setStatusCount( status, ( parseInt( tab.attr( 'data-count' ), 10 ) || 0 ) + delta );
+        }, // End adjustStatusCount()
 
 
         /**
@@ -441,6 +464,11 @@ jQuery( function ( $ ) {
          * should visually restore/adjust the flagged count.
          */
         incrementMenuBadge: function () {
+            document.querySelectorAll( '#ptscanner-header .ptscanner-tab-count' ).forEach( function ( badge ) {
+                const current = parseInt( badge.textContent, 10 );
+                badge.textContent = isNaN( current ) ? 1 : current + 1;
+            } );
+
             const badges = document.querySelectorAll( '#adminmenu .update-plugins .update-count' );
 
             if ( badges.length ) {
@@ -468,9 +496,8 @@ jQuery( function ( $ ) {
          * Fetch and render a page of front-end results
          */
         loadFrontResults: function () {
-            $( '#ptscanner-front-results' ).show();
             const body = $( '#ptscanner-front-results-body' );
-            body.html( '<tr><td colspan="7">' + ( ptscanner_data.strings.loading || 'Loading…' ) + '</td></tr>' );
+            this.messageRow( body, 7, strings.loading );
 
             $.post( ptscanner_data.ajaxUrl, {
                 action: 'ptscanner_get_results',
@@ -481,13 +508,13 @@ jQuery( function ( $ ) {
                 location_filter: this.frontLocationFilter,
             } ).done( ( response ) => {
                 if ( ! response.success ) {
-                    body.html( '<tr><td colspan="7">' + ( response.data.message || 'Error loading results.' ) + '</td></tr>' );
+                    this.messageRow( body, 7, this.errorMessage( response ) );
                     return;
                 }
 
                 this.renderFrontResults( response.data );
             } ).fail( () => {
-                body.html( '<tr><td colspan="7">' + ( ptscanner_data.strings.requestFailed || 'Request failed.' ) + '</td></tr>' );
+                this.messageRow( body, 7, strings.requestFailed );
             } );
         }, // End loadFrontResults()
 
@@ -498,12 +525,12 @@ jQuery( function ( $ ) {
          * @param {Object} data
          */
         renderFrontResults: function ( data ) {
-            $( '.ptscanner-front-tab[data-status="flagged"]' ).text( 'Flagged (' + data.total_flagged + ')' );
-            $( '.ptscanner-front-tab[data-status="ignored"]' ).text( 'Marked as OK (' + data.total_ignored + ')' );
+            this.setStatusCount( 'flagged', data.total_flagged );
+            this.setStatusCount( 'ignored', data.total_ignored );
 
             const termSelect = $( '#ptscanner-front-term-filter' );
             const currentTermVal = termSelect.val();
-            termSelect.empty().append( '<option value="">All Terms</option>' );
+            termSelect.empty().append( $( '<option value=""></option>' ).text( strings.allTerms ) );
             data.distinct_terms.forEach( ( term ) => {
                 termSelect.append( $( '<option></option>' ).val( term ).text( term ) );
             } );
@@ -511,7 +538,7 @@ jQuery( function ( $ ) {
 
             const locationSelect = $( '#ptscanner-front-location-filter' );
             const currentLocationVal = locationSelect.val();
-            locationSelect.empty().append( '<option value="">All Locations</option>' );
+            locationSelect.empty().append( $( '<option value=""></option>' ).text( strings.allLocations ) );
             $.each( data.distinct_locations, ( slug, label ) => {
                 locationSelect.append( $( '<option></option>' ).val( slug ).text( label ) );
             } );
@@ -521,20 +548,20 @@ jQuery( function ( $ ) {
             body.empty();
 
             if ( ! data.rows.length ) {
-                body.html( '<tr><td colspan="7">' + ( ptscanner_data.strings.noResults || 'No results found.' ) + '</td></tr>' );
+                this.messageRow( body, 7, strings.noResults );
             } else {
                 data.rows.forEach( ( row ) => {
                     body.append( this.buildRow( row ) );
                 } );
             }
 
-            this.renderFrontPagination( data.total_pages );
+            this.renderPageLinks( $( '#ptscanner-front-pagination' ), data.total_pages, this.frontPage );
         }, // End renderFrontResults()
 
 
         loadFrontPages: function () {
             const body = $( '#ptscanner-front-pages-body' );
-            body.html( '<tr><td colspan="3">' + ( ptscanner_data.strings.loading || 'Loading…' ) + '</td></tr>' );
+            this.messageRow( body, 3, strings.loading );
 
             $.post( ptscanner_data.ajaxUrl, {
                 action: 'ptscanner_get_pages_list',
@@ -542,13 +569,13 @@ jQuery( function ( $ ) {
                 page: this.frontPagesPage,
             } ).done( ( response ) => {
                 if ( ! response.success ) {
-                    body.html( '<tr><td colspan="3">' + ( response.data.message || 'Error loading pages.' ) + '</td></tr>' );
+                    this.messageRow( body, 3, this.errorMessage( response ) );
                     return;
                 }
 
                 this.renderFrontPages( response.data );
             } ).fail( () => {
-                body.html( '<tr><td colspan="3">' + ( ptscanner_data.strings.requestFailed || 'Request failed.' ) + '</td></tr>' );
+                this.messageRow( body, 3, strings.requestFailed );
             } );
         }, // End loadFrontPages()
 
@@ -563,14 +590,14 @@ jQuery( function ( $ ) {
             body.empty();
 
             if ( ! data.rows.length ) {
-                body.html( '<tr><td colspan="3">' + ( ptscanner_data.strings.noResults || 'No pages found.' ) + '</td></tr>' );
+                this.messageRow( body, 3, strings.noResults );
             } else {
                 data.rows.forEach( ( row ) => {
                     body.append( this.buildPageRow( row ) );
                 } );
             }
 
-            this.renderFrontPagesPagination( data.total_pages );
+            this.renderPageLinks( $( '#ptscanner-front-pages-pagination' ), data.total_pages, this.frontPagesPage );
         }, // End renderFrontPages()
 
 
@@ -583,58 +610,21 @@ jQuery( function ( $ ) {
         buildPageRow: function ( row ) {
             const tr = $( '<tr></tr>' ).attr( 'id', 'ptscanner-front-page-row-' + row.id ).toggleClass( 'ptscanner-row-omitted', row.is_omitted );
 
-            tr.append( $( '<td></td>' ).append( $( '<a target="_blank"></a>' ).attr( 'href', row.permalink ).text( row.title ) ) );
+            tr.append( $( '<td></td>' ).append( $( '<a target="_blank" rel="noopener noreferrer"></a>' ).attr( 'href', row.permalink ).text( row.title ) ) );
             tr.append( $( '<td></td>' ).text( row.post_type ) );
 
-            const statusCell = $( '<td></td>' );
-            statusCell.append(
-                $( '<a href="#" class="ptscanner-pages-toggle-omit"></a>' )
-                    .attr( 'data-id', row.id )
-                    .attr( 'data-type', 'post' )
-                    .attr( 'data-omitted', row.is_omitted ? '1' : '0' )
-                    .text( row.is_omitted ? 'Un-Omit' : 'Omit Page' )
+            tr.append(
+                $( '<td class="column-actions"></td>' ).append(
+                    $( '<button type="button" class="ptscanner-button ptscanner-button-small ptscanner-button-secondary ptscanner-pages-toggle-omit"></button>' )
+                        .attr( 'data-id', row.id )
+                        .attr( 'data-type', 'post' )
+                        .attr( 'data-omitted', row.is_omitted ? '1' : '0' )
+                        .text( row.is_omitted ? strings.unomit : strings.omitPage )
+                )
             );
-            statusCell.append( $( '<span class="ptscanner-inline-spinner"></span>' ) );
-            tr.append( statusCell );
 
             return tr;
         }, // End buildPageRow()
-
-
-        /**
-         * Render simple prev/next + page number pagination for the front-end pages table
-         *
-         * @param {number} totalPages
-         */
-        renderFrontPagesPagination: function ( totalPages ) {
-            console.log( 'renderFrontPagesPagination called with', totalPages, typeof totalPages );
-
-            const container = $( '#ptscanner-front-pages-pagination' );
-            console.log( 'container found:', container.length );
-
-            container.empty();
-
-            if ( totalPages <= 1 ) {
-                console.log( 'bailing early, totalPages <= 1' );
-                return;
-            }
-
-            for ( let i = 1; i <= totalPages; i++ ) {
-                const link = $( '<a href="#"></a>' )
-                    .addClass( 'ptscanner-front-page-link' )
-                    .attr( 'data-page', i )
-                    .attr( 'data-context', 'pages' )
-                    .text( i );
-
-                if ( i === this.frontPagesPage ) {
-                    link.addClass( 'current' );
-                }
-
-                container.append( link ).append( ' ' );
-            }
-
-            console.log( 'final container html:', container.html() );
-        }, // End renderFrontPagesPagination()
 
 
         /**
@@ -644,77 +634,58 @@ jQuery( function ( $ ) {
          * @return {jQuery}
          */
         buildRow: function ( row ) {
-            const tr = $( '<tr></tr>' ).attr( 'id', 'ptscanner-front-row-' + row.id ).attr( 'data-id', row.id );
+            const tr = $( '<tr></tr>' ).attr( 'id', 'ptscanner-row-' + row.id ).attr( 'data-id', row.id );
+            const isMediaRow = 'filename' === row.location_type || 'alt_text' === row.location_type;
 
-            tr.append( $( '<td></td>' ).append( $( '<strong></strong>' ).text( row.term ) ) );
+            tr.append( $( '<td class="column-term"></td>' ).append( $( '<strong></strong>' ).text( row.term ) ) );
 
-            const contextCell = $( '<td></td>' ).html( this.highlightTerm( row.context_snippet, row.term ) );
+            const contextCell = $( '<td class="column-context"></td>' ).html( this.highlightTerm( row.context_snippet, row.term ) );
             if ( row.file_page ) {
-                contextCell.append( $( '<br>' ) ).append( $( '<em></em>' ).text( 'Page ' + row.file_page ) );
+                contextCell.append( $( '<br>' ) ).append( $( '<em></em>' ).text( sprintf( strings.pageNumber, row.file_page ) ) );
             }
             tr.append( contextCell );
 
-            tr.append( $( '<td></td>' ).text( row.location_label ) );
+            tr.append( $( '<td class="column-location"></td>' ).text( row.location_label ) );
 
-            const sourceCell = $( '<td></td>' );
-
+            const sourceCell = $( '<td class="column-source"></td>' );
             if ( row.source_title ) {
                 sourceCell.append( $( '<strong></strong>' ).text( row.source_title ) ).append( $( '<br>' ) );
             }
 
+            const sourceLinks = $( '<span class="ptscanner-source-links"></span>' );
             if ( row.highlight_link ) {
-                sourceCell.append( $( '<a target="_blank"></a>' ).attr( 'href', row.highlight_link ).text( 'View Source' ) ).append( ' | ' );
-            } else {
-                sourceCell.append( '— ' );
+                sourceLinks.append( $( '<a target="_blank" rel="noopener noreferrer"></a>' ).attr( 'href', row.highlight_link ).text( strings.viewSource ) ).append( ' | ' );
             }
-
-            sourceCell.append(
+            sourceLinks.append(
                 $( '<a href="#" class="ptscanner-toggle-omit"></a>' )
                     .attr( 'data-id', row.source_id )
                     .attr( 'data-type', row.source_type )
                     .attr( 'data-omitted', '0' )
-                    .text( 'Omit Source' )
+                    .text( strings.omitSource )
             );
-
+            sourceCell.append( sourceLinks );
+            sourceCell.append( $( '<div class="ptscanner-media-usage-result"></div>' ).attr( 'id', 'ptscanner-media-usage-' + row.id ) );
             tr.append( sourceCell );
 
-            const noteCell = $( '<td></td>' );
-            noteCell.append(
-                $( '<textarea class="ptscanner-note-field" rows="2"></textarea>' )
-                    .attr( 'data-id', row.id )
-                    .attr( 'placeholder', 'Add a note…' )
-                    .val( row.note || '' )
+            tr.append(
+                $( '<td class="column-note"></td>' )
+                    .append( $( '<textarea class="ptscanner-note-field" rows="2"></textarea>' ).attr( 'data-id', row.id ).attr( 'placeholder', strings.addNote ).attr( 'aria-label', strings.note ).val( row.note || '' ) )
+                    .append( $( '<button type="button" class="ptscanner-link-button ptscanner-save-note"></button>' ).attr( 'data-id', row.id ).text( strings.saveNote ) )
             );
-            noteCell.append( $( '<br>' ) );
-            noteCell.append(
-                $( '<button type="button" class="button-link ptscanner-save-note"></button>' )
-                    .attr( 'data-id', row.id )
-                    .text( 'Save Note' )
-            );
-            tr.append( noteCell );
 
-            tr.append( $( '<td></td>' ).text( this.formatDate( row.created_at ) ) );
+            tr.append( $( '<td class="column-date"></td>' ).text( row.date_display || '' ) );
 
-            const actionsCell = $( '<td></td>' );
+            const actions = $( '<div class="ptscanner-row-actions"></div>' );
             if ( 'flagged' === row.status ) {
-                actionsCell.append( $( '<button type="button" class="button-link ptscanner-front-mark-ok"></button>' ).attr( 'data-id', row.id ).text( 'Mark as OK' ) );
+                actions.append( this.smallButton( 'ptscanner-mark-ok', row.id, strings.markOk ) );
             } else {
-                actionsCell.append( $( '<button type="button" class="button-link ptscanner-front-mark-flagged"></button>' ).attr( 'data-id', row.id ).text( 'Unignore' ) );
+                actions.append( this.smallButton( 'ptscanner-mark-flagged', row.id, strings.unignore ) );
             }
-            actionsCell.append( ' ' );
-            actionsCell.append( $( '<button type="button" class="button-link ptscanner-front-clear-result"></button>' ).attr( 'data-id', row.id ).text( 'Clear' ) );
-
-            if ( 'filename' === row.location_type || 'alt_text' === row.location_type ) {
-                actionsCell.append( $( '<br>' ) );
-                actionsCell.append(
-                    $( '<button type="button" class="button-link ptscanner-check-media-usage"></button>' )
-                        .attr( 'data-id', row.source_id )
-                        .text( 'Check Usage' )
-                );
-                sourceCell.append( $( '<div class="ptscanner-media-usage-result"></div>' ).attr( 'id', 'ptscanner-media-usage-' + row.id ) );
+            if ( isMediaRow ) {
+                actions.append( this.smallButton( 'ptscanner-button-secondary ptscanner-check-media-usage', row.source_id, strings.checkUsage ) );
             }
-
-            tr.append( actionsCell );
+            actions.append( this.smallButton( 'ptscanner-button-danger ptscanner-clear-result', row.id, strings.clear ) );
+            tr.append( $( '<td class="column-actions"></td>' ).append( actions ) );
 
             return tr;
         }, // End buildRow()
@@ -722,7 +693,7 @@ jQuery( function ( $ ) {
 
         loadFrontExtLinks: function () {
             const body = $( '#ptscanner-front-ext-links-body' );
-            body.html( '<tr><td colspan="5">' + ( ptscanner_data.strings.loading || 'Loading…' ) + '</td></tr>' );
+            this.messageRow( body, 5, strings.loading );
 
             $.post( ptscanner_data.ajaxUrl, {
                 action: 'ptscanner_get_external_links',
@@ -731,16 +702,16 @@ jQuery( function ( $ ) {
                 filter: this.frontExtLinksFilter,
             } ).done( ( response ) => {
                 if ( ! response.success ) {
-                    body.html( '<tr><td colspan="5">' + ( response.data.message || 'Error loading links.' ) + '</td></tr>' );
+                    this.messageRow( body, 5, this.errorMessage( response ) );
                     return;
                 }
 
-                $( '.ptscanner-ext-links-front-filter-tab[data-filter="all"]' ).text( 'All Links (' + response.data.total_all + ')' );
-                $( '.ptscanner-ext-links-front-filter-tab[data-filter="flagged"]' ).text( 'Flagged Only (' + response.data.total_flagged + ')' );
+                $( '.ptscanner-ext-links-front-filter-tab[data-filter="all"]' ).text( sprintf( strings.allLinksCount, response.data.total_all ) );
+                $( '.ptscanner-ext-links-front-filter-tab[data-filter="flagged"]' ).text( sprintf( strings.flaggedLinksCount, response.data.total_flagged ) );
 
                 this.renderFrontExtLinks( response.data );
             } ).fail( () => {
-                body.html( '<tr><td colspan="5">' + ( ptscanner_data.strings.requestFailed || 'Request failed.' ) + '</td></tr>' );
+                this.messageRow( body, 5, strings.requestFailed );
             } );
         }, // End loadFrontExtLinks()
 
@@ -750,32 +721,14 @@ jQuery( function ( $ ) {
             body.empty();
 
             if ( ! data.rows.length ) {
-                body.html( '<tr><td colspan="5">' + ( ptscanner_data.strings.noResults || 'No links found.' ) + '</td></tr>' );
+                this.messageRow( body, 5, strings.noResults );
             } else {
                 data.rows.forEach( ( row ) => {
                     body.append( this.buildExtLinkRow( row ) );
                 } );
             }
 
-            const container = $( '#ptscanner-front-ext-links-pagination' );
-            container.empty();
-
-            if ( data.total_pages <= 1 ) {
-                return;
-            }
-
-            for ( let i = 1; i <= data.total_pages; i++ ) {
-                const link = $( '<a href="#"></a>' )
-                    .addClass( 'ptscanner-front-page-link ptscanner-front-ext-links-page-link' )
-                    .attr( 'data-page', i )
-                    .text( i );
-
-                if ( i === this.frontExtLinksPage ) {
-                    link.addClass( 'current' );
-                }
-
-                container.append( link ).append( ' ' );
-            }
+            this.renderPageLinks( $( '#ptscanner-front-ext-links-pagination' ), data.total_pages, this.frontExtLinksPage );
         }, // End renderFrontExtLinks()
 
 
@@ -787,7 +740,7 @@ jQuery( function ( $ ) {
             }
 
             const linkCell = $( '<td></td>' );
-            const linkAnchor = $( '<a target="_blank"></a>' ).attr( 'href', row.link );
+            const linkAnchor = $( '<a target="_blank" rel="noopener noreferrer"></a>' ).attr( 'href', row.link );
 
             if ( row.matched_term ) {
                 linkAnchor.html( this.highlightTerm( row.link, row.matched_term ) );
@@ -808,22 +761,16 @@ jQuery( function ( $ ) {
 
             tr.append( anchorCell );
 
-            tr.append( $( '<td></td>' ).append( $( '<a target="_blank"></a>' ).attr( 'href', row.source_link ).text( row.source_title ) ) );
+            tr.append( $( '<td></td>' ).append( $( '<a target="_blank" rel="noopener noreferrer"></a>' ).attr( 'href', row.source_link ).text( row.source_title ) ) );
             tr.append( $( '<td></td>' ).text( row.matched_term || '' ) );
 
             const noteCell = $( '<td></td>' );
-            noteCell.append(
-                $( '<textarea class="ptscanner-ext-link-note" rows="2"></textarea>' )
-                    .attr( 'data-id', row.id )
-                    .attr( 'placeholder', 'Add a note…' )
-                    .val( row.note || '' )
-            );
-            noteCell.append( $( '<br>' ) );
-            noteCell.append(
-                $( '<button type="button" class="button-link ptscanner-ext-link-save-note"></button>' )
-                    .attr( 'data-id', row.id )
-                    .text( 'Save Note' )
-            );
+            if ( ptscanner_data.canScan ) {
+                noteCell.append( $( '<textarea class="ptscanner-ext-link-note" rows="2"></textarea>' ).attr( 'data-id', row.id ).attr( 'placeholder', strings.addNote ).attr( 'aria-label', strings.note ).val( row.note || '' ) );
+                noteCell.append( $( '<button type="button" class="ptscanner-link-button ptscanner-ext-link-save-note"></button>' ).attr( 'data-id', row.id ).text( strings.saveNote ) );
+            } else {
+                noteCell.append( $( '<span class="ptscanner-note-display"></span>' ).text( row.note || '' ) );
+            }
             tr.append( noteCell );
 
             return tr;
@@ -831,38 +778,83 @@ jQuery( function ( $ ) {
 
 
         /**
-         * Format a MySQL datetime string (e.g. "2026-07-16 14:30:00") into
-         * a readable 12-hour date/time string, matching the admin table's format
+         * Build a small row action button
          *
-         * @param {string} mysqlDatetime
+         * @param {string} classes Extra classes, including the action class
+         * @param {number} id
+         * @param {string} label
+         * @return {jQuery}
+         */
+        smallButton: function ( classes, id, label ) {
+            return $( '<button type="button"></button>' ).addClass( 'ptscanner-button ptscanner-button-small ' + classes ).attr( 'data-id', id ).text( label );
+        }, // End smallButton()
+
+
+        /**
+         * Mark a segmented-control button as current within its group
+         *
+         * @param {HTMLElement} button
+         * @return {jQuery}
+         */
+        setCurrentTab: function ( button ) {
+            const tab = $( button );
+
+            tab.closest( '.ptscanner-segmented' ).children().removeClass( 'current' ).attr( 'aria-pressed', 'false' );
+            tab.addClass( 'current' ).attr( 'aria-pressed', 'true' );
+
+            return tab;
+        }, // End setCurrentTab()
+
+
+        /**
+         * Render numbered page links into a pagination container, hiding it when there is one page
+         *
+         * @param {jQuery} container
+         * @param {number} totalPages
+         * @param {number} currentPage
+         */
+        renderPageLinks: function ( container, totalPages, currentPage ) {
+            container.empty().prop( 'hidden', totalPages <= 1 );
+
+            for ( let i = 1; i <= totalPages; i++ ) {
+                const link = $( '<a href="#" class="page-numbers"></a>' ).attr( 'data-page', i ).text( i );
+
+                if ( i === currentPage ) {
+                    link.addClass( 'current' ).attr( 'aria-current', 'page' );
+                }
+
+                container.append( link );
+            }
+        }, // End renderPageLinks()
+
+
+        /**
+         * Replace a table body with a single full-width message row
+         *
+         * @param {jQuery} body
+         * @param {number} colspan
+         * @param {string} message
+         */
+        messageRow: function ( body, colspan, message ) {
+            body.empty().append( $( '<tr></tr>' ).append( $( '<td></td>' ).attr( 'colspan', colspan ).text( message ) ) );
+        }, // End messageRow()
+
+
+        /**
+         * Get the error message from a failed AJAX response
+         *
+         * @param {Object} response
          * @return {string}
          */
-        formatDate: function ( mysqlDatetime ) {
-            if ( ! mysqlDatetime ) {
-                return '';
+        errorMessage: function ( response ) {
+            const data = response && response.data;
+
+            if ( data && 'object' === typeof data && data.message ) {
+                return data.message;
             }
 
-            const parts = mysqlDatetime.split( /[- :]/ );
-
-            if ( parts.length < 5 ) {
-                return mysqlDatetime;
-            }
-
-            const date = new Date( parts[ 0 ], parts[ 1 ] - 1, parts[ 2 ], parts[ 3 ], parts[ 4 ] );
-
-            const year = date.getFullYear();
-            const month = String( date.getMonth() + 1 ).padStart( 2, '0' );
-            const day = String( date.getDate() ).padStart( 2, '0' );
-
-            let hours = date.getHours();
-            const minutes = String( date.getMinutes() ).padStart( 2, '0' );
-            const ampm = hours >= 12 ? 'PM' : 'AM';
-
-            hours = hours % 12;
-            hours = hours ? hours : 12;
-
-            return year + '-' + month + '-' + day + ' ' + hours + ':' + minutes + ' ' + ampm;
-        }, // End formatDate()
+            return 'string' === typeof data && '' !== data ? data : strings.actionFailed;
+        }, // End errorMessage()
 
 
         /**
@@ -892,38 +884,12 @@ jQuery( function ( $ ) {
 
 
         /**
-         * Render simple prev/next + page number pagination for the front-end table
-         *
-         * @param {number} totalPages
-         */
-        renderFrontPagination: function ( totalPages ) {
-            const container = $( '#ptscanner-front-pagination' );
-            container.empty();
-
-            if ( totalPages <= 1 ) {
-                return;
-            }
-
-            for ( let i = 1; i <= totalPages; i++ ) {
-                const link = $( '<a href="#" class="ptscanner-front-page-link"></a>' ).attr( 'data-page', i ).text( i );
-
-                if ( i === this.frontPage ) {
-                    link.addClass( 'current' );
-                }
-
-                container.append( link ).append( ' ' );
-            }
-        }, // End renderFrontPagination()
-
-
-        /**
          * Update a row's status via AJAX, then remove it from the current view
          *
          * @param {HTMLElement} button
          * @param {string} status
-         * @param {boolean} isAdminBadgeTarget Whether to decrement the wp-admin menu badge (only for "Mark as OK", not "Unignore")
          */
-        setStatus: function ( button, status, isAdminBadgeTarget ) {
+        setStatus: function ( button, status ) {
             const id = $( button ).data( 'id' );
             const row = $( button ).closest( 'tr' );
 
@@ -936,20 +902,23 @@ jQuery( function ( $ ) {
                 status: status,
             } ).done( ( response ) => {
                 if ( response.success ) {
-                    if ( isAdminBadgeTarget && 'ignored' === status ) {
+                    if ( 'ignored' === status ) {
                         this.decrementMenuBadge();
-                    } else if ( isAdminBadgeTarget && 'flagged' === status ) {
+                    } else {
                         this.incrementMenuBadge();
                     }
+
+                    this.adjustStatusCount( status, 1 );
+                    this.adjustStatusCount( 'ignored' === status ? 'flagged' : 'ignored', -1 );
 
                     row.fadeOut( 200, () => row.remove() );
                 } else {
                     $( button ).prop( 'disabled', false );
-                    alert( response.data.message || 'Could not update status.' );
+                    alert( this.errorMessage( response ) );
                 }
             } ).fail( () => {
                 $( button ).prop( 'disabled', false );
-                alert( ptscanner_data.strings.requestFailed || 'Request failed.' );
+                alert( strings.requestFailed );
             } );
         }, // End setStatus()
 
@@ -958,24 +927,23 @@ jQuery( function ( $ ) {
          * Clear (delete) a result row after confirmation
          *
          * @param {HTMLElement} button
-         * @param {boolean} isAdminBadgeTarget Whether to adjust the wp-admin menu badge
          */
-        clearResult: function ( button, isAdminBadgeTarget ) {
+        clearResult: function ( button ) {
             const row = $( button ).closest( 'tr' );
             const noteField = row.find( '.ptscanner-note-field' );
             const noteDisplay = row.find( '.ptscanner-note-display' );
             const hasNote = ( noteField.length && '' !== noteField.val().trim() ) || ( noteDisplay.length && '' !== noteDisplay.text().trim() );
 
             const confirmMessage = hasNote
-                ? 'This result has a note on it. Clear it anyway? This cannot be undone.'
-                : ptscanner_data.strings.confirmClear;
+                ? strings.confirmClearWithNote
+                : strings.confirmClear;
 
             if ( ! confirm( confirmMessage ) ) {
                 return;
             }
 
             const id = $( button ).data( 'id' );
-            const isIgnoredTab = $( '.subsubsub a.current' ).text().indexOf( 'Marked as OK' ) !== -1;
+            const isIgnoredTab = 'ignored' === row.closest( '[data-status]' ).data( 'status' );
 
             $( button ).prop( 'disabled', true );
 
@@ -985,18 +953,20 @@ jQuery( function ( $ ) {
                 id: id,
             } ).done( ( response ) => {
                 if ( response.success ) {
-                    if ( isAdminBadgeTarget && ! isIgnoredTab ) {
+                    if ( ! isIgnoredTab ) {
                         this.decrementMenuBadge();
                     }
+
+                    this.adjustStatusCount( isIgnoredTab ? 'ignored' : 'flagged', -1 );
 
                     row.fadeOut( 200, () => row.remove() );
                 } else {
                     $( button ).prop( 'disabled', false );
-                    alert( response.data.message || 'Could not clear result.' );
+                    alert( this.errorMessage( response ) );
                 }
             } ).fail( () => {
                 $( button ).prop( 'disabled', false );
-                alert( ptscanner_data.strings.requestFailed || 'Request failed.' );
+                alert( strings.requestFailed );
             } );
         }, // End clearResult()
 
@@ -1010,7 +980,7 @@ jQuery( function ( $ ) {
          */
         saveNote: function ( id, note, button ) {
             if ( button ) {
-                button.prop( 'disabled', true ).text( 'Saving…' );
+                button.prop( 'disabled', true ).text( strings.saving );
             }
 
             $.post( ptscanner_data.ajaxUrl, {
@@ -1020,24 +990,24 @@ jQuery( function ( $ ) {
                 note: note,
             } ).done( ( response ) => {
                 if ( ! response.success ) {
-                    alert( response.data.message || 'Could not save note.' );
+                    alert( this.errorMessage( response ) );
 
                     if ( button ) {
-                        button.prop( 'disabled', false ).text( 'Save Note' );
+                        button.prop( 'disabled', false ).text( strings.saveNote );
                     }
 
                     return;
                 }
 
                 if ( button ) {
-                    button.prop( 'disabled', false ).text( 'Saved' );
-                    setTimeout( () => button.text( 'Save Note' ), 1500 );
+                    button.prop( 'disabled', false ).text( strings.saved );
+                    setTimeout( () => button.text( strings.saveNote ), 1500 );
                 }
             } ).fail( () => {
-                alert( ptscanner_data.strings.requestFailed || 'Request failed.' );
+                alert( strings.requestFailed );
 
                 if ( button ) {
-                    button.prop( 'disabled', false ).text( 'Save Note' );
+                    button.prop( 'disabled', false ).text( strings.saveNote );
                 }
             } );
         }, // End saveNote()
@@ -1045,7 +1015,7 @@ jQuery( function ( $ ) {
 
         saveExtLinkNote: function ( id, note, button ) {
             if ( button ) {
-                button.prop( 'disabled', true ).text( 'Saving…' );
+                button.prop( 'disabled', true ).text( strings.saving );
             }
 
             $.post( ptscanner_data.ajaxUrl, {
@@ -1055,24 +1025,24 @@ jQuery( function ( $ ) {
                 note: note,
             } ).done( ( response ) => {
                 if ( ! response.success ) {
-                    alert( response.data.message || 'Could not save note.' );
+                    alert( this.errorMessage( response ) );
 
                     if ( button ) {
-                        button.prop( 'disabled', false ).text( 'Save Note' );
+                        button.prop( 'disabled', false ).text( strings.saveNote );
                     }
 
                     return;
                 }
 
                 if ( button ) {
-                    button.prop( 'disabled', false ).text( 'Saved' );
-                    setTimeout( () => button.text( 'Save Note' ), 1500 );
+                    button.prop( 'disabled', false ).text( strings.saved );
+                    setTimeout( () => button.text( strings.saveNote ), 1500 );
                 }
             } ).fail( () => {
-                alert( ptscanner_data.strings.requestFailed || 'Request failed.' );
+                alert( strings.requestFailed );
 
                 if ( button ) {
-                    button.prop( 'disabled', false ).text( 'Save Note' );
+                    button.prop( 'disabled', false ).text( strings.saveNote );
                 }
             } );
         }, // End saveExtLinkNote()

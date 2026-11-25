@@ -112,24 +112,19 @@ jQuery( function ( $ ) {
             const enabled = ptscanner_data.enabledTypes;
 
             $.each( groups, ( groupName, types ) => {
-                const groupWrap = $( '<fieldset class="ptscanner-type-group"></fieldset>' );
-                const label = groupName.charAt( 0 ).toUpperCase() + groupName.slice( 1 );
-                const legend = $( '<legend></legend>' ).text( label );
-                groupWrap.append( legend );
+                const group = $( '<div class="ptscanner-checkbox-group"></div>' );
+                const title = $( '<span class="ptscanner-checkbox-group-title"></span>' ).text( groupName.charAt( 0 ).toUpperCase() + groupName.slice( 1 ) );
+                const list = $( '<div class="ptscanner-checkboxes"></div>' );
 
                 $.each( types, ( slug, typeData ) => {
-                    const isChecked = enabled.indexOf( slug ) !== -1;
-                    const label = $( '<label class="ptscanner-type-checkbox"></label>' );
-                    const checkbox = $( '<input type="checkbox" />' )
-                        .val( slug )
-                        .prop( 'checked', isChecked )
-                        .attr( 'name', 'location_types[]' );
+                    const label = $( '<label></label>' );
+                    const checkbox = $( '<input type="checkbox" name="location_types[]" />' ).val( slug ).prop( 'checked', -1 !== enabled.indexOf( slug ) );
 
-                    label.append( checkbox ).append( ' ' + typeData.label );
-                    groupWrap.append( label );
+                    label.append( checkbox, document.createTextNode( ' ' + typeData.label ) );
+                    list.append( label );
                 } );
 
-                container.append( groupWrap );
+                container.append( group.append( title, list ) );
             } );
         }, // End renderLocationTypeCheckboxes()
 
@@ -164,6 +159,7 @@ jQuery( function ( $ ) {
             this.typeQueue = this.getSelectedTypes();
 
             if ( ! this.typeQueue.length ) {
+                alert( ptscanner_data.strings.noLocations );
                 return;
             }
 
@@ -179,16 +175,15 @@ jQuery( function ( $ ) {
             this.scanStartTime = Date.now();
             this.startElapsedTimer();
 
-            $( '#ptscanner-start-scan' ).prop( 'disabled', true ).hide();
-            $( '#ptscanner-cancel-scan' ).show();
-            $( '#ptscanner-progress' ).show();
-            $( '.ptscanner-progress-spinner' ).show();
+            $( '#ptscanner-start-scan' ).prop( 'disabled', true ).prop( 'hidden', true );
+            $( '#ptscanner-cancel-scan' ).prop( 'hidden', false ).css( 'display', '' );
+            $( '#ptscanner-progress' ).prop( 'hidden', false ).css( 'display', '' );
+            $( '.ptscanner-progress-spinner' ).prop( 'hidden', false ).css( 'display', '' );
             $( '#ptscanner-progress-fill' ).removeClass( 'ptscanner-progress-stopped' );
             $( '#ptscanner-scan-errors' ).empty();
-            $( '#ptscanner-summary' ).hide();
             this.updateProgressLabel( ptscanner_data.strings.scanning );
 
-            this.saveTerms( terms, () => {
+            window.ptscannerTermsUi.save( () => {
                 this.runNextBatch();
             } );
         }, // End startScan()
@@ -200,7 +195,7 @@ jQuery( function ( $ ) {
         startElapsedTimer: function () {
             this.stopElapsedTimer();
 
-            $( '#ptscanner-elapsed-time' ).show();
+            $( '#ptscanner-elapsed-time' ).prop( 'hidden', false ).css( 'display', '' );
 
             this.elapsedInterval = setInterval( () => {
                 const seconds = Math.floor( ( Date.now() - this.scanStartTime ) / 1000 );
@@ -260,25 +255,8 @@ jQuery( function ( $ ) {
         cancelScan: function () {
             this.cancelRequested = true;
             $( '#ptscanner-cancel-scan' ).prop( 'disabled', true );
-            this.updateProgressLabel( ptscanner_data.strings.cancelling || 'Cancelling…' );
+            this.updateProgressLabel( ptscanner_data.strings.cancelling );
         }, // End cancelScan()
-
-
-        /**
-         * Save the current term list to the server before scanning
-         *
-         * @param {Array} terms
-         * @param {Function} onComplete
-         */
-        saveTerms: function ( terms, onComplete ) {
-            $.post( ptscanner_data.ajaxUrl, {
-                action: 'ptscanner_save_terms',
-                nonce: ptscanner_data.nonce,
-                terms: JSON.stringify( terms ),
-            } ).always( () => {
-                onComplete();
-            } );
-        }, // End saveTerms()
 
 
         /**
@@ -308,7 +286,7 @@ jQuery( function ( $ ) {
                 this.isFirstBatchOfRun = false;
 
                 if ( ! response.success ) {
-                    const message = ( response.data && response.data.message ) ? response.data.message : 'Unknown error.';
+                    const message = ( response.data && response.data.message ) ? response.data.message : ptscanner_data.strings.unknownError;
                     this.logError( currentType, failedOffset, message );
                     this.currentOffset += this.batchSize;
                     this.runNextBatch();
@@ -327,7 +305,7 @@ jQuery( function ( $ ) {
 
                 this.runNextBatch();
             } ).fail( () => {
-                this.logError( currentType, failedOffset, ptscanner_data.strings.requestFailed || 'Request failed.' );
+                this.logError( currentType, failedOffset, ptscanner_data.strings.requestFailed );
                 this.currentOffset += this.batchSize;
                 this.runNextBatch();
             } );
@@ -357,11 +335,9 @@ jQuery( function ( $ ) {
          */
         logError: function ( typeSlug, offset, rawMessage ) {
             const label = this.locationLabels[ typeSlug ] || typeSlug;
-            const message = 'There was an error scanning ' + label + ' on one or more sources at batch ' + offset + '. Technical detail: ' + rawMessage;
+            const message = wp.i18n.sprintf( ptscanner_data.strings.scanError, label, offset, rawMessage );
 
-            const item = $( '<li class="ptscanner-scan-error"></li>' );
-            item.text( message );
-            $( '#ptscanner-scan-errors' ).append( item );
+            $( '#ptscanner-scan-errors' ).append( $( '<li class="ptscanner-scan-error"></li>' ).text( message ) );
         }, // End logError()
 
 
@@ -383,10 +359,9 @@ jQuery( function ( $ ) {
             const percent = Math.round( ( ( this.currentTypeIndex + 1 ) / this.typeQueue.length ) * 100 );
 
             $( '#ptscanner-progress-fill' ).css( 'width', percent + '%' );
-            this.updateProgressLabel(
-                ptscanner_data.strings.scanning + ': ' + currentType +
-                ' (~' + this.totalScanned + ' checked, ' + this.totalInserted + ' found so far)'
-            );
+            const label = this.locationLabels[ currentType ] || currentType;
+
+            this.updateProgressLabel( ptscanner_data.strings.scanning + ': ' + wp.i18n.sprintf( ptscanner_data.strings.progressDetail, label, this.totalScanned, this.totalInserted ) );
         }, // End updateProgress()
 
 
@@ -405,7 +380,7 @@ jQuery( function ( $ ) {
          */
         onRunComplete: function () {
             $( '#ptscanner-progress-fill' ).css( 'width', '100%' );
-            $( '.ptscanner-progress-spinner' ).hide();
+            $( '.ptscanner-progress-spinner' ).prop( 'hidden', true );
             $( '#ptscanner-progress-fill' ).addClass( 'ptscanner-progress-stopped' );
             this.updateProgressLabel( ptscanner_data.strings.done );
             this.resetControls();
@@ -423,9 +398,9 @@ jQuery( function ( $ ) {
          * Called when the user cancels mid-run
          */
         onRunCancelled: function () {
-            $( '.ptscanner-progress-spinner' ).hide();
+            $( '.ptscanner-progress-spinner' ).prop( 'hidden', true );
             $( '#ptscanner-progress-fill' ).addClass( 'ptscanner-progress-stopped' );
-            this.updateProgressLabel( ptscanner_data.strings.cancelled || 'Scan cancelled. Results so far are saved.' );
+            this.updateProgressLabel( ptscanner_data.strings.cancelled );
             this.resetControls();
             this.loadSummary();
             this.finishElapsedTimer();
@@ -441,52 +416,22 @@ jQuery( function ( $ ) {
          * Reset the start/cancel button states after a run ends (complete or cancelled)
          */
         resetControls: function () {
-            $( '#ptscanner-start-scan' ).prop( 'disabled', false ).show();
-            $( '#ptscanner-cancel-scan' ).prop( 'disabled', false ).hide();
+            $( '#ptscanner-start-scan' ).prop( 'disabled', false ).prop( 'hidden', false ).css( 'display', '' );
+            $( '#ptscanner-cancel-scan' ).prop( 'disabled', false ).prop( 'hidden', true );
         }, // End resetControls()
 
 
         /**
-         * Fetch and render the per-term summary table
+         * Refresh the per-term summary table (shortcode only) and open it
          */
         loadSummary: function () {
-            $.post( ptscanner_data.ajaxUrl, {
-                action: 'ptscanner_get_summary',
-                nonce: ptscanner_data.nonce,
-            } ).done( ( response ) => {
-                if ( ! response.success ) {
-                    return;
-                }
-
-                this.renderSummary( response.data.summary );
-            } );
-        }, // End loadSummary()
-
-
-        /**
-         * Render the summary table
-         *
-         * @param {Array} summary Array of [ term, count ]
-         */
-        renderSummary: function ( summary ) {
-            const body = $( '#ptscanner-persistent-summary-body' );
-            body.empty();
-
-            if ( ! summary.length ) {
-                const row = $( '<tr></tr>' );
-                row.append( $( '<td colspan="2"></td>' ).text( 'No matches found.' ) );
-                body.append( row );
-            } else {
-                summary.forEach( ( entry ) => {
-                    const row = $( '<tr></tr>' );
-                    row.append( $( '<td></td>' ).text( entry.term ) );
-                    row.append( $( '<td></td>' ).text( entry.count ) );
-                    body.append( row );
-                } );
+            if ( ! $( '#ptscanner-persistent-summary-body' ).length ) {
+                return;
             }
 
+            window.ptscannerResults.loadSummary();
             $( '#ptscanner-summary-accordion' ).prop( 'open', true );
-        }, // End renderSummary()
+        }, // End loadSummary()
 
     };
 

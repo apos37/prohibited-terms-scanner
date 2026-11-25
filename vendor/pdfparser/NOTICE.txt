@@ -1,0 +1,38 @@
+PdfParser (smalot/pdfparser)
+============================
+
+Bundled in Prohibited Terms Scanner to read text from PDF files.
+
+Original work:  PdfParser by Sébastien MALOT and contributors
+Version:        2.12.5
+Source:         https://github.com/smalot/pdfparser
+License:        GNU Lesser General Public License v3.0 (LICENSE.txt). The LGPL v3
+                adds permissions to the GNU General Public License v3.0, included
+                as GPL-3.0.txt.
+
+Modifications
+-------------
+
+This copy has been modified by PluginRx for Prohibited Terms Scanner. The
+modifications only rename and relocate code so it cannot conflict with another
+plugin that bundles a different version of the same library. Parsing behavior is
+unchanged.
+
+1. Every namespace is prefixed with "PTScannerVendor" using php-scoper 0.17.5
+   (Smalot\PdfParser becomes PTScannerVendor\Smalot\PdfParser). The
+   configuration is in scoper.inc.php in the plugin root.
+2. Two class names built from strings at runtime were updated to the prefixed
+   namespace, so they resolve after scoping:
+   - Encoding.php: the base encoding class name in getEncodingClass().
+   - PDFObject.php: the font class name built from the font subtype.
+3. Files were moved from src/Smalot/PdfParser/ to vendor/pdfparser/, and
+   Composer's autoloader was replaced with vendor/pdfparser-autoload.php.
+4. Only the library's source files are included. Tests, documentation and the
+   symfony/polyfill-mbstring dependency are not bundled; PDF parsing uses the
+   PHP mbstring extension.
+
+Copyright and license headers in the source files are kept as they were.
+
+To rebuild from the unmodified source, run "composer install" with the
+composer.json and composer.lock in the plugin root, then run php-scoper with
+scoper.inc.php.

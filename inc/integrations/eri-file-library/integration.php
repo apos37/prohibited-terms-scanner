@@ -1,6 +1,6 @@
 <?php
 /**
- * ERI File Library integration
+ * INTEGRATION: ERI FILE LIBRARY
  *
  * Registers ERI File Library's custom post type as scannable locations,
  * supporting both the current standalone plugin (erifl-files, meta key
@@ -217,14 +217,15 @@ class EriFileLibrary {
      */
     private function get_eri_batch( $offset, $limit ) : array {
         $query = new \WP_Query( [
-            'post_type'      => $this->post_type(),
-            'post_status'    => 'publish',
-            'posts_per_page' => $limit,
-            'offset'         => $offset,
-            'orderby'        => 'ID',
-            'order'          => 'ASC',
-            'fields'         => 'ids',
-            'no_found_rows'  => true,
+            'post_type'        => $this->post_type(),
+            'post_status'      => 'publish',
+            'posts_per_page'   => $limit,
+            'offset'           => $offset,
+            'orderby'          => 'ID',
+            'order'            => 'ASC',
+            'fields'           => 'ids',
+            'no_found_rows'    => true,
+            'suppress_filters' => true,
         ] );
 
         return $query->posts;
@@ -344,8 +345,12 @@ class EriFileLibrary {
             $file_path = $this->file_url( $post_id, true );
 
             if ( ! $file_path || ! file_exists( $file_path ) ) {
+                ErrorLog::instance()->log( 'eri_file_content', 'File is missing from the server, skipped.', [ 'eri_file_id' => $post_id, 'file' => (string) $file_path ] );
+
                 continue;
             }
+
+            $scanner->mark_processing( 'eri_file_content', $post_id );
 
             $ext = strtolower( pathinfo( $file_path, PATHINFO_EXTENSION ) );
             $url = $this->link_eri_file( $post_id );
@@ -363,7 +368,7 @@ class EriFileLibrary {
                 continue;
             }
 
-            $matches = $scanner->match_terms( $content, $terms );
+            $matches = $scanner->match_terms( $content, $terms, false );
 
             foreach ( $matches as $match ) {
                 $rows[] = $this->build_row( $scanner, $match, 'eri_file_content', $post_id );
@@ -459,7 +464,7 @@ class EriFileLibrary {
             return;
         }
 
-        $matches = Scanner::instance()->match_terms( $content, $terms );
+        $matches = Scanner::instance()->match_terms( $content, $terms, false );
 
         if ( empty( $matches ) ) {
             return;

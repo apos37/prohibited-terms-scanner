@@ -51,46 +51,21 @@ class FrontEnd {
      * @return bool
      */
     private function current_user_can_use_shortcode() : bool {
-        if ( current_user_can( 'manage_options' ) ) {
-            return true;
-        }
-
-        $user = wp_get_current_user();
-
-        if ( ! $user || ! $user->exists() ) {
-            return false;
-        }
-
-        $allowed_roles = Settings::instance()->get_shortcode_roles();
-
-        return (bool) array_intersect( $allowed_roles, (array) $user->roles );
+        return Access::can_scan();
     } // End current_user_can_use_shortcode()
-
-
-    /**
-     * Whether the current user may toggle omit status on the front-end
-     *
-     * @return bool
-     */
-    private function current_user_can_toggle_omit() : bool {
-        return $this->current_user_can_use_shortcode();
-    } // End current_user_can_toggle_omit()
 
 
     /**
      * Render the shortcode output
      *
-     * @param array $atts
      * @return string
      */
-    public function render_shortcode( $atts ) : string {
+    public function render_shortcode() : string {
         if ( ! $this->current_user_can_use_shortcode() ) {
             return '<p class="ptscanner-front-notice">' . esc_html__( 'You do not have permission to use this tool.', 'prohibited-terms-scanner' ) . '</p>';
         }
 
         $this->enqueue_scanner_assets();
-
-        $ptscanner_can_toggle_omit = $this->current_user_can_toggle_omit();
 
         ob_start();
         require Bootstrap::path( 'views/shortcode-scanner.php' );
@@ -100,74 +75,14 @@ class FrontEnd {
 
 
     /**
-     * Enqueue the same scanner UI assets used on the admin page, front-end context
+     * Enqueue the same styles and scanner scripts used on the Scanner tab
      *
      * @return void
      */
-    private function enqueue_scanner_assets() {
-        $textdomain     = Bootstrap::textdomain();
-        $script_version = Bootstrap::script_version();
-
-        wp_enqueue_style(
-            $textdomain . '-admin',
-            Bootstrap::url( 'inc/css/admin.css' ),
-            [],
-            $script_version
-        );
-
-        // Core handle: anchor for wp_localize_script, same pattern as admin-menu.php.
-        wp_register_script( $textdomain . '-core', false, [ 'jquery' ], $script_version, true );
-        wp_enqueue_script( $textdomain . '-core' );
-
-        wp_localize_script( $textdomain . '-core', 'ptscanner_data', [
-            'ajaxUrl'              => admin_url( 'admin-ajax.php' ),
-            'nonce'                => wp_create_nonce( 'ptscanner_nonce' ),
-            'savedTerms'           => Settings::instance()->get_terms(),
-            'locationTypes'        => TypeRegistry::instance()->get_grouped_types(),
-            'enabledTypes'         => Settings::instance()->get_enabled_location_types(),
-            'defaultCaseSensitive' => Settings::instance()->get_default_case_sensitive(),
-            'defaultStrict'        => Settings::instance()->get_default_strict(),
-            'batchSize'            => Settings::instance()->get_batch_size(),
-            'strings'              => [
-                'scanning'           => __( 'Scanning', 'prohibited-terms-scanner' ),
-                'done'               => __( 'Scan complete.', 'prohibited-terms-scanner' ),
-                'noTerms'            => __( 'Add at least one term or phrase first.', 'prohibited-terms-scanner' ),
-                'confirmClear'       => __( 'Clear this result? This cannot be undone.', 'prohibited-terms-scanner' ),
-                'duplicateTerm'      => __( 'Already in the list, skipped.', 'prohibited-terms-scanner' ),
-                'requestFailed'      => __( 'Request failed (network or server error).', 'prohibited-terms-scanner' ),
-                'cancelling'         => __( 'Cancelling…', 'prohibited-terms-scanner' ),
-                'cancelled'          => __( 'Scan cancelled. Results so far are saved.', 'prohibited-terms-scanner' ),
-                'caseSensitiveLabel' => __( 'Case Sensitive', 'prohibited-terms-scanner' ),
-                'strictLabel'        => __( 'Strict', 'prohibited-terms-scanner' ),
-                'loading'            => __( 'Loading…', 'prohibited-terms-scanner' ),
-                'noResults'          => __( 'No results found.', 'prohibited-terms-scanner' ),
-                'confirmClearAllTerms' => __( 'Clear all terms from the list? This cannot be undone.', 'prohibited-terms-scanner' ),
-            ],
-        ] );
-
-        wp_enqueue_script(
-            $textdomain . '-terms-ui',
-            Bootstrap::url( 'inc/js/terms-ui.js' ),
-            [ $textdomain . '-core' ],
-            $script_version,
-            true
-        );
-
-        wp_enqueue_script(
-            $textdomain . '-results',
-            Bootstrap::url( 'inc/js/results.js' ),
-            [ $textdomain . '-core' ],
-            $script_version,
-            true
-        );
-
-        wp_enqueue_script(
-            $textdomain . '-scanner',
-            Bootstrap::url( 'inc/js/scanner.js' ),
-            [ $textdomain . '-core', $textdomain . '-terms-ui', $textdomain . '-results' ],
-            $script_version,
-            true
-        );
+    private function enqueue_scanner_assets() : void {
+        Helpers::enqueue_styles( 'frontend' );
+        Helpers::enqueue_core_script();
+        Helpers::enqueue_scripts( [ 'terms-ui', 'results', 'scanner' ] );
     } // End enqueue_scanner_assets()
 
 

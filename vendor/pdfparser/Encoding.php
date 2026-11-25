@@ -129,7 +129,7 @@ class Encoding extends PDFObject
         if (!\is_string($baseEncoding) || 0 == \strlen($baseEncoding)) {
             $baseEncoding = 'StandardEncoding';
         }
-        $className = '\\Smalot\\PdfParser\\Encoding\\' . $baseEncoding;
+        $className = '\\PTScannerVendor\\Smalot\\PdfParser\\Encoding\\' . $baseEncoding;
         if (!\class_exists($className)) {
             throw new EncodingNotFoundException('Missing encoding data for: "' . $baseEncoding . '".');
         }

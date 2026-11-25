@@ -80,7 +80,7 @@ class OmittedSourcesPage {
      * @return array
      */
     public function add_row_action( array $actions, \WP_Post $post ) : array {
-        if ( ! current_user_can( 'manage_options' ) ) {
+        if ( ! Access::can_scan() ) {
             return $actions;
         }
 
@@ -134,7 +134,7 @@ class OmittedSourcesPage {
      * @return void
      */
     public function maybe_enqueue_row_action_script( $hook ) {
-        if ( ! in_array( $hook, [ 'edit.php', 'upload.php' ], true ) ) {
+        if ( ! in_array( $hook, [ 'edit.php', 'upload.php' ], true ) || ! Access::can_scan() ) {
             return;
         }
 
@@ -153,8 +153,10 @@ class OmittedSourcesPage {
             'ajaxUrl' => admin_url( 'admin-ajax.php' ),
             'nonce'   => wp_create_nonce( 'ptscanner_nonce' ),
             'labels'  => [
-                'omit'   => __( 'Omit from Terms Scanner', 'prohibited-terms-scanner' ),
-                'unomit' => __( 'Unignore from Terms Scanner', 'prohibited-terms-scanner' ),
+                'omit'          => __( 'Omit from Terms Scanner', 'prohibited-terms-scanner' ),
+                'unomit'        => __( 'Unignore from Terms Scanner', 'prohibited-terms-scanner' ),
+                'updateFailed'  => __( 'Could not update.', 'prohibited-terms-scanner' ),
+                'requestFailed' => __( 'Request failed.', 'prohibited-terms-scanner' ),
             ],
         ] );
     } // End maybe_enqueue_row_action_script()
@@ -168,8 +170,8 @@ class OmittedSourcesPage {
     public function ajax_toggle_omit() {
         check_ajax_referer( 'ptscanner_nonce', 'nonce' );
 
-        if ( ! Ajax::instance()->current_user_can_scan() ) {
-            wp_send_json_error( [ 'message' => __( 'Permission denied.', 'prohibited-terms-scanner' ) ] );
+        if ( ! Ajax::instance()->require_access( 'scan' ) ) {
+            return;
         }
 
         $id   = isset( $_POST[ 'id' ] ) ? absint( wp_unslash( $_POST[ 'id' ] ) ) : 0;
@@ -204,8 +206,8 @@ class OmittedSourcesPage {
     public function ajax_bulk_omit() {
         check_ajax_referer( 'ptscanner_nonce', 'nonce' );
 
-        if ( ! current_user_can( 'manage_options' ) ) {
-            wp_send_json_error( [ 'message' => __( 'Permission denied.', 'prohibited-terms-scanner' ) ] );
+        if ( ! Ajax::instance()->require_access( 'scan' ) ) {
+            return;
         }
 
         $ids  = isset( $_POST[ 'ids' ] ) ? array_map( 'absint', (array) wp_unslash( $_POST[ 'ids' ] ) ) : [];
@@ -238,7 +240,7 @@ class OmittedSourcesPage {
      * @return array
      */
     public function add_bulk_actions( array $bulk_actions ) : array {
-        if ( ! current_user_can( 'manage_options' ) ) {
+        if ( ! Access::can_scan() ) {
             return $bulk_actions;
         }
 
@@ -263,7 +265,7 @@ class OmittedSourcesPage {
             return $redirect_url;
         }
 
-        if ( ! current_user_can( 'manage_options' ) ) {
+        if ( ! Access::can_scan() ) {
             return $redirect_url;
         }
 

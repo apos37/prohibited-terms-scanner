@@ -1,11 +1,11 @@
 jQuery( function ( $ ) {
 
     /**
-     * Terms UI controller
+     * Terms UI controller (Scanner tab and front-end shortcode)
      *
-     * Owns: textarea parsing, card creation/dedup, pill rendering,
-     * accordion collapse/expand, and serializing to the JSON shape
-     * the Settings class expects: [ { term, case_sensitive, strict } ]
+     * Owns: textarea parsing, card creation/dedup, pill rendering, accordion
+     * collapse/expand, and saving the list via AJAX in the shape the Settings
+     * class expects: [ { term, case_sensitive, strict } ]
      */
     const ptscannerTermsUi = {
 
@@ -17,10 +17,24 @@ jQuery( function ( $ ) {
 
 
         /**
+         * Whether the list has changes that are not saved yet
+         */
+        isDirty: false,
+
+
+        /**
+         * Localized strings
+         */
+        strings: {},
+
+
+        /**
          * Init
          */
         init: function () {
-            if ( typeof ptscanner_data !== 'undefined' && ptscanner_data.savedTerms ) {
+            this.strings = ptscanner_data.strings || {};
+
+            if ( ptscanner_data.savedTerms ) {
                 this.terms = ptscanner_data.savedTerms;
             }
 
@@ -37,24 +51,27 @@ jQuery( function ( $ ) {
                 this.addFromTextarea();
             } );
 
+            $( document ).on( 'click', '#ptscanner-save-terms', () => {
+                this.save();
+            } );
+
             $( document ).on( 'click', '.ptscanner-term-remove', ( event ) => {
-                const index = $( event.currentTarget ).closest( '.ptscanner-term-card' ).data( 'index' );
-                this.removeTerm( index );
+                this.removeTerm( this.cardIndex( event ) );
             } );
 
             $( document ).on( 'change', '.ptscanner-term-case', ( event ) => {
-                const index = $( event.currentTarget ).closest( '.ptscanner-term-card' ).data( 'index' );
-                this.terms[ index ].case_sensitive = $( event.currentTarget ).is( ':checked' );
+                this.terms[ this.cardIndex( event ) ].case_sensitive = $( event.currentTarget ).is( ':checked' );
+                this.markDirty();
             } );
 
             $( document ).on( 'change', '.ptscanner-term-strict', ( event ) => {
-                const index = $( event.currentTarget ).closest( '.ptscanner-term-card' ).data( 'index' );
-                this.terms[ index ].strict = $( event.currentTarget ).is( ':checked' );
+                this.terms[ this.cardIndex( event ) ].strict = $( event.currentTarget ).is( ':checked' );
+                this.markDirty();
             } );
 
             $( document ).on( 'input', '.ptscanner-term-text', ( event ) => {
-                const index = $( event.currentTarget ).closest( '.ptscanner-term-card' ).data( 'index' );
-                this.terms[ index ].term = $( event.currentTarget ).val();
+                this.terms[ this.cardIndex( event ) ].term = $( event.currentTarget ).val();
+                this.markDirty();
             } );
 
             $( document ).on( 'click', '.ptscanner-pill-edit', () => {
@@ -62,18 +79,41 @@ jQuery( function ( $ ) {
             } );
 
             $( document ).on( 'click', '#ptscanner-clear-all-terms', () => {
-                if ( ! this.terms.length ) {
-                    return;
-                }
-
-                if ( ! confirm( ptscanner_data.strings.confirmClearAllTerms || 'Clear all terms from the list? This cannot be undone.' ) ) {
+                if ( ! this.terms.length || ! window.confirm( this.strings.confirmClearAllTerms ) ) {
                     return;
                 }
 
                 this.terms = [];
                 this.renderCards();
+                this.markDirty();
+            } );
+
+            $( window ).on( 'beforeunload', () => {
+                if ( this.isDirty ) {
+                    return this.strings.unsavedTerms;
+                }
             } );
         }, // End bindEvents()
+
+
+        /**
+         * Get the term index of the card that fired an event
+         *
+         * @param {Event} event
+         * @return {number}
+         */
+        cardIndex: function ( event ) {
+            return $( event.currentTarget ).closest( '.ptscanner-term-card' ).data( 'index' );
+        }, // End cardIndex()
+
+
+        /**
+         * Flag unsaved changes
+         */
+        markDirty: function () {
+            this.isDirty = true;
+            this.setStatus( '', '' );
+        }, // End markDirty()
 
 
         /**
@@ -87,12 +127,9 @@ jQuery( function ( $ ) {
                 return;
             }
 
-            const lines = raw.split( /\r?\n/ );
-            const defaultCase = ptscanner_data.defaultCaseSensitive || false;
-            const defaultStrict = ptscanner_data.defaultStrict || false;
             let skippedCount = 0;
 
-            lines.forEach( ( line ) => {
+            raw.split( /\r?\n/ ).forEach( ( line ) => {
                 const cleaned = line.trim().replace( /\s+/g, ' ' );
 
                 if ( '' === cleaned ) {
@@ -106,16 +143,17 @@ jQuery( function ( $ ) {
 
                 this.terms.push( {
                     term: cleaned,
-                    case_sensitive: defaultCase,
-                    strict: defaultStrict,
+                    case_sensitive: !! ptscanner_data.defaultCaseSensitive,
+                    strict: !! ptscanner_data.defaultStrict,
                 } );
             } );
 
             textarea.val( '' );
             this.renderCards();
+            this.markDirty();
 
             if ( skippedCount > 0 ) {
-                this.showNotice( ptscanner_data.strings.duplicateTerm + ' (' + skippedCount + ')' );
+                this.showNotice( this.strings.duplicateTerm + ' (' + skippedCount + ')' );
             }
         }, // End addFromTextarea()
 
@@ -141,6 +179,7 @@ jQuery( function ( $ ) {
         removeTerm: function ( index ) {
             this.terms.splice( index, 1 );
             this.renderCards();
+            this.markDirty();
         }, // End removeTerm()
 
 
@@ -148,26 +187,24 @@ jQuery( function ( $ ) {
          * Render the editable term cards
          */
         renderCards: function () {
-            const container = $( '#ptscanner-terms-cards' );
-            container.empty();
+            const container = $( '#ptscanner-terms-cards' ).empty();
 
             this.terms.forEach( ( termData, index ) => {
-                const card = $( '<div class="ptscanner-term-card" data-index="' + index + '"></div>' );
-
-                const textInput = $( '<input type="text" class="ptscanner-term-text regular-text" />' ).val( termData.term );
+                const card = $( '<div class="ptscanner-term-card"></div>' ).attr( 'data-index', index );
+                const textInput = $( '<input type="text" class="ptscanner-term-text" />' ).val( termData.term );
                 const caseLabel = $( '<label class="ptscanner-term-flag"></label>' );
                 const caseCheckbox = $( '<input type="checkbox" class="ptscanner-term-case" />' ).prop( 'checked', !! termData.case_sensitive );
                 const strictLabel = $( '<label class="ptscanner-term-flag"></label>' );
                 const strictCheckbox = $( '<input type="checkbox" class="ptscanner-term-strict" />' ).prop( 'checked', !! termData.strict );
-                const removeButton = $( '<button type="button" class="button-link ptscanner-term-remove" aria-label="Remove"></button>' ).text( '×' );
+                const removeButton = $( '<button type="button" class="ptscanner-term-remove"></button>' ).attr( 'aria-label', this.strings.removeTerm ).text( '×' );
 
-                caseLabel.append( caseCheckbox ).append( ' ' + ( ptscanner_data.strings.caseSensitiveLabel || 'Case Sensitive' ) );
-                strictLabel.append( strictCheckbox ).append( ' ' + ( ptscanner_data.strings.strictLabel || 'Strict' ) );
-
+                caseLabel.append( caseCheckbox, document.createTextNode( ' ' + this.strings.caseSensitiveLabel ) );
+                strictLabel.append( strictCheckbox, document.createTextNode( ' ' + this.strings.strictLabel ) );
                 card.append( textInput, caseLabel, strictLabel, removeButton );
                 container.append( card );
             } );
 
+            $( '#ptscanner-terms-count' ).text( this.terms.length );
             this.updatePillsHidden();
         }, // End renderCards()
 
@@ -176,40 +213,31 @@ jQuery( function ( $ ) {
          * Render collapsed pill view, one pill per term with active-flag badges
          */
         renderPills: function () {
-            const container = $( '#ptscanner-terms-pills' );
-            container.empty();
+            const container = $( '#ptscanner-terms-pills' ).empty();
 
-            const useCompactMode = this.terms.length > 75;
+            if ( this.terms.length > 75 ) {
+                const summary = $( '<p class="ptscanner-pills-compact-summary"></p>' ).text( wp.i18n.sprintf( this.strings.termsLoaded, this.terms.length ) + ' ' );
 
-            if ( useCompactMode ) {
-                const summary = $( '<p class="ptscanner-pills-compact-summary"></p>' );
-                summary.text( this.terms.length + ' terms loaded. ' );
-
-                const editLink = $( '<button type="button" class="button-link ptscanner-pill-edit"></button>' ).text( 'Edit list' );
-                summary.append( editLink );
-                container.append( summary );
-                container.show();
+                summary.append( $( '<button type="button" class="ptscanner-pill-edit"></button>' ).text( this.strings.editList ) );
+                container.append( summary ).prop( 'hidden', false ).css( 'display', '' );
                 return;
             }
 
             this.terms.forEach( ( termData ) => {
-                const pill = $( '<span class="ptscanner-pill"></span>' );
-                pill.text( termData.term );
+                const pill = $( '<span class="ptscanner-pill"></span>' ).text( termData.term );
 
                 if ( termData.case_sensitive ) {
-                    pill.append( $( '<span class="ptscanner-pill-badge">CS</span>' ) );
+                    pill.append( $( '<span class="ptscanner-pill-badge"></span>' ).text( this.strings.caseBadge ) );
                 }
 
                 if ( termData.strict ) {
-                    pill.append( $( '<span class="ptscanner-pill-badge">Strict</span>' ) );
+                    pill.append( $( '<span class="ptscanner-pill-badge"></span>' ).text( this.strings.strictLabel ) );
                 }
 
                 container.append( pill );
             } );
 
-            const editButton = $( '<button type="button" class="button-link ptscanner-pill-edit"></button>' ).text( 'Edit' );
-            container.append( editButton );
-            container.show();
+            container.append( $( '<button type="button" class="ptscanner-pill-edit"></button>' ).text( this.strings.edit ) ).prop( 'hidden', false ).css( 'display', '' );
         }, // End renderPills()
 
 
@@ -227,7 +255,7 @@ jQuery( function ( $ ) {
          */
         expandAccordion: function () {
             $( '.ptscanner-terms-accordion' ).attr( 'open', 'open' );
-            $( '#ptscanner-terms-pills' ).hide();
+            $( '#ptscanner-terms-pills' ).prop( 'hidden', true );
         }, // End expandAccordion()
 
 
@@ -236,13 +264,13 @@ jQuery( function ( $ ) {
          */
         updatePillsHidden: function () {
             if ( $( '.ptscanner-terms-accordion' ).is( '[open]' ) ) {
-                $( '#ptscanner-terms-pills' ).hide();
+                $( '#ptscanner-terms-pills' ).prop( 'hidden', true );
             }
         }, // End updatePillsHidden()
 
 
         /**
-         * Get the current term list as a plain array (for saving/serializing)
+         * Get the current term list as a plain array
          *
          * @return {Array}
          */
@@ -252,12 +280,55 @@ jQuery( function ( $ ) {
 
 
         /**
+         * Save the term list via AJAX
+         *
+         * @param {Function} onComplete Optional. Called after the request finishes, success or not.
+         */
+        save: function ( onComplete ) {
+            const button = $( '#ptscanner-save-terms' ).prop( 'disabled', true );
+
+            $.post( ptscanner_data.ajaxUrl, {
+                action: 'ptscanner_save_terms',
+                nonce: ptscanner_data.nonce,
+                terms: JSON.stringify( this.terms ),
+            } ).done( ( response ) => {
+                if ( response.success ) {
+                    this.isDirty = false;
+                    this.setStatus( this.strings.termsSaved, 'is-success' );
+                } else {
+                    this.setStatus( this.strings.termsSaveError, 'is-error' );
+                }
+            } ).fail( () => {
+                this.setStatus( this.strings.termsSaveError, 'is-error' );
+            } ).always( () => {
+                button.prop( 'disabled', false );
+
+                if ( 'function' === typeof onComplete ) {
+                    onComplete();
+                }
+            } );
+        }, // End save()
+
+
+        /**
+         * Show the save status next to the term buttons
+         *
+         * @param {string} message
+         * @param {string} className
+         */
+        setStatus: function ( message, className ) {
+            $( '#ptscanner-terms-status' ).removeClass( 'is-success is-error' ).addClass( className ).text( message );
+        }, // End setStatus()
+
+
+        /**
          * Show a transient inline notice near the terms input
          *
          * @param {string} message
          */
         showNotice: function ( message ) {
             const notice = $( '<p class="ptscanner-inline-notice"></p>' ).text( message );
+
             $( '.ptscanner-terms-input' ).append( notice );
 
             setTimeout( () => {
@@ -269,7 +340,7 @@ jQuery( function ( $ ) {
 
     ptscannerTermsUi.init();
 
-    // Expose for scanner.js to read the current term list and trigger collapse.
+    // Exposed for scanner.js to read and save the term list and trigger collapse.
     window.ptscannerTermsUi = ptscannerTermsUi;
 
 } );

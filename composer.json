@@ -4,7 +4,7 @@
     "type": "wordpress-plugin",
     "license": "GPL-2.0-or-later",
     "require": {
-        "php": ">=7.4",
+        "php": ">=8.0",
         "smalot/pdfparser": "^2.0"
     },
     "config": {

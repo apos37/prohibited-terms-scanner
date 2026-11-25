@@ -107,24 +107,25 @@ class Ajax {
 
 
     /**
-     * Verify the requesting user can run scans (admin scanner or shortcode)
+     * Check that the current user has the access level an action needs, sending a
+     * JSON error when they don't. Call after check_ajax_referer().
      *
+     * @param string $level 'view', 'scan' or 'manage'.
      * @return bool
      */
-    public function current_user_can_scan() : bool {
-        if ( current_user_can( 'manage_options' ) ) {
-            return true;
+    public function require_access( string $level ) : bool {
+        $allowed = match ( $level ) {
+            'manage' => Access::can_manage(),
+            'view'   => Access::can_view(),
+            default  => Access::can_scan(),
+        };
+
+        if ( ! $allowed ) {
+            $this->send_error( [ 'message' => __( 'Permission denied.', 'prohibited-terms-scanner' ) ] );
         }
 
-        $allowed_roles = Settings::instance()->get_shortcode_roles();
-        $user          = wp_get_current_user();
-
-        if ( ! $user || ! $user->exists() ) {
-            return false;
-        }
-
-        return (bool) array_intersect( $allowed_roles, (array) $user->roles );
-    } // End current_user_can_scan()
+        return $allowed;
+    } // End require_access()
 
 
     /**
@@ -135,8 +136,7 @@ class Ajax {
     public function save_terms() {
         check_ajax_referer( 'ptscanner_nonce', 'nonce' );
 
-        if ( ! $this->current_user_can_scan() ) {
-            $this->send_error( [ 'message' => __( 'Permission denied.', 'prohibited-terms-scanner' ) ] );
+        if ( ! $this->require_access( 'scan' ) ) {
             return;
         }
 
@@ -165,8 +165,7 @@ class Ajax {
     public function run_batch() {
         check_ajax_referer( 'ptscanner_nonce', 'nonce' );
 
-        if ( ! $this->current_user_can_scan() ) {
-            $this->send_error( [ 'message' => __( 'Permission denied.', 'prohibited-terms-scanner' ) ] );
+        if ( ! $this->require_access( 'scan' ) ) {
             return;
         }
 
@@ -195,7 +194,7 @@ class Ajax {
 
         // Only a full admin scan may wipe prior flagged results; shortcode
         // scans always append, never wipe, to avoid discarding shared history.
-        $can_wipe = current_user_can( 'manage_options' );
+        $can_wipe = Access::can_manage();
 
         if ( $is_first_batch && $can_wipe ) {
             DB::instance()->wipe_flagged();
@@ -249,8 +248,7 @@ class Ajax {
     public function mark_status() {
         check_ajax_referer( 'ptscanner_nonce', 'nonce' );
 
-        if ( ! $this->current_user_can_scan() ) {
-            $this->send_error( [ 'message' => __( 'Permission denied.', 'prohibited-terms-scanner' ) ] );
+        if ( ! $this->require_access( 'scan' ) ) {
             return;
         }
 
@@ -283,8 +281,7 @@ class Ajax {
     public function delete_result() {
         check_ajax_referer( 'ptscanner_nonce', 'nonce' );
 
-        if ( ! $this->current_user_can_scan() ) {
-            $this->send_error( [ 'message' => __( 'Permission denied.', 'prohibited-terms-scanner' ) ] );
+        if ( ! $this->require_access( 'scan' ) ) {
             return;
         }
 
@@ -314,8 +311,7 @@ class Ajax {
     public function get_summary() {
         check_ajax_referer( 'ptscanner_nonce', 'nonce' );
 
-        if ( ! $this->current_user_can_scan() ) {
-            $this->send_error( [ 'message' => __( 'Permission denied.', 'prohibited-terms-scanner' ) ] );
+        if ( ! $this->require_access( 'view' ) ) {
             return;
         }
 
@@ -335,8 +331,7 @@ class Ajax {
     public function get_results() {
         check_ajax_referer( 'ptscanner_nonce', 'nonce' );
 
-        if ( ! $this->current_user_can_scan() ) {
-            $this->send_error( [ 'message' => __( 'Permission denied.', 'prohibited-terms-scanner' ) ] );
+        if ( ! $this->require_access( 'view' ) ) {
             return;
         }
 
@@ -365,8 +360,7 @@ class Ajax {
     public function clear_all() {
         check_ajax_referer( 'ptscanner_nonce', 'nonce' );
 
-        if ( ! $this->current_user_can_scan() ) {
-            $this->send_error( [ 'message' => __( 'Permission denied.', 'prohibited-terms-scanner' ) ] );
+        if ( ! $this->require_access( 'scan' ) ) {
             return;
         }
 
@@ -396,8 +390,7 @@ class Ajax {
     public function get_pages_list() {
         check_ajax_referer( 'ptscanner_nonce', 'nonce' );
 
-        if ( ! $this->current_user_can_scan() ) {
-            $this->send_error( [ 'message' => __( 'Permission denied.', 'prohibited-terms-scanner' ) ] );
+        if ( ! $this->require_access( 'scan' ) ) {
             return;
         }
 
@@ -417,8 +410,7 @@ class Ajax {
     public function save_note() {
         check_ajax_referer( 'ptscanner_nonce', 'nonce' );
 
-        if ( ! $this->current_user_can_scan() ) {
-            $this->send_error( [ 'message' => __( 'Permission denied.', 'prohibited-terms-scanner' ) ] );
+        if ( ! $this->require_access( 'scan' ) ) {
             return;
         }
 
@@ -449,8 +441,7 @@ class Ajax {
     public function run_external_links_scan() {
         check_ajax_referer( 'ptscanner_nonce', 'nonce' );
 
-        if ( ! current_user_can( 'manage_options' ) ) {
-            $this->send_error( [ 'message' => __( 'Permission denied.', 'prohibited-terms-scanner' ) ] );
+        if ( ! $this->require_access( 'scan' ) ) {
             return;
         }
 
@@ -468,8 +459,7 @@ class Ajax {
     public function get_external_links() {
         check_ajax_referer( 'ptscanner_nonce', 'nonce' );
 
-        if ( ! $this->current_user_can_scan() ) {
-            $this->send_error( [ 'message' => __( 'Permission denied.', 'prohibited-terms-scanner' ) ] );
+        if ( ! $this->require_access( 'view' ) ) {
             return;
         }
 
@@ -497,8 +487,7 @@ class Ajax {
     public function save_external_link_note() {
         check_ajax_referer( 'ptscanner_nonce', 'nonce' );
 
-        if ( ! $this->current_user_can_scan() ) {
-            $this->send_error( [ 'message' => __( 'Permission denied.', 'prohibited-terms-scanner' ) ] );
+        if ( ! $this->require_access( 'scan' ) ) {
             return;
         }
 
@@ -529,8 +518,7 @@ class Ajax {
     public function save_scan_duration() {
         check_ajax_referer( 'ptscanner_nonce', 'nonce' );
 
-        if ( ! $this->current_user_can_scan() ) {
-            $this->send_error( [ 'message' => __( 'Permission denied.', 'prohibited-terms-scanner' ) ] );
+        if ( ! $this->require_access( 'scan' ) ) {
             return;
         }
 
@@ -551,8 +539,7 @@ class Ajax {
     public function check_media_usage() {
         check_ajax_referer( 'ptscanner_nonce', 'nonce' );
 
-        if ( ! $this->current_user_can_scan() ) {
-            $this->send_error( [ 'message' => __( 'Permission denied.', 'prohibited-terms-scanner' ) ] );
+        if ( ! $this->require_access( 'view' ) ) {
             return;
         }
 

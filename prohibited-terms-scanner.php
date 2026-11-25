@@ -1,18 +1,18 @@
 <?php
 /**
  * Plugin Name:         Prohibited Terms Scanner
- * Plugin URI:          https://pluginrx.com/plugin/prohibited-terms-scanner
+ * Plugin URI:          https://pluginrx.com/plugin/prohibited-terms-scanner/
  * Description:         Scan pages, posts, media, and files for prohibited terms and phrases.
- * Version:             1.2.1
+ * Version:             1.3.0
  * Requires at least:   6.0
  * Tested up to:        7.0
- * Requires PHP:        7.4
+ * Requires PHP:        8.0
  * Author:              PluginRx
  * Author URI:          https://pluginrx.com/
  * Discord URI:         https://discord.gg/3HnzNEJVnR
  * Text Domain:         prohibited-terms-scanner
  * License:             GPLv2 or later
- * License URI:         http://www.gnu.org/licenses/gpl-2.0.txt
+ * License URI:         https://www.gnu.org/licenses/gpl-2.0.html
  * Created on:          July 15, 2026
  */
 
@@ -29,40 +29,43 @@ if ( ! defined( 'ABSPATH' ) ) exit;
 final class Bootstrap {
 
     /**
-     * Plugin files to load (all requests)
+     * Plugin files to load on every request, relative to /inc/.
      */
     public const FILES = [
-        'inc/omits.php',
-        'inc/error-log.php',
-        'inc/db.php',
-        'inc/type-registry.php',
-        'inc/settings.php',
-        'inc/external-links-db.php',
-        'inc/external-links-scanner.php',
-        'inc/scanner.php',
-        'inc/ajax.php',
-        'inc/hooks-warning.php',
-        'inc/results-page-data.php',
-        'inc/front-end.php',
-        'inc/pages-list.php',
-        'inc/cron.php',
-        'inc/integrations/eri-file-library.php',
-        'inc/integrations/role-visibility.php',
+        'helpers.php',
+        'access.php',
+        'omits.php',
+        'error-log.php',
+        'db.php',
+        'type-registry.php',
+        'settings.php',
+        'external-links-db.php',
+        'external-links-scanner.php',
+        'scanner.php',
+        'ajax.php',
+        'hooks-warning.php',
+        'results-page-data.php',
+        'front-end.php',
+        'pages-list.php',
+        'cron.php',
+        'dynamic-css.php',
+        'integrations.php',
     ];
 
 
     /**
-     * Admin-only files
+     * Admin-only files, relative to /inc/. AJAX requests count as admin.
      */
     public const ADMIN_FILES = [
-        'inc/admin-menu.php',
-        'inc/import-export.php',
-        'inc/omitted-sources-page.php'
+        'plugin-page.php',
+        'menu.php',
+        'import-export.php',
+        'omitted-sources-page.php',
     ];
 
 
     /**
-     * Plugin header keys
+     * Plugin header keys for get_file_data()
      */
     public const HEADER_KEYS = [
         'name'         => 'Plugin Name',
@@ -73,23 +76,26 @@ final class Bootstrap {
         'textdomain'   => 'Text Domain',
         'author'       => 'Author',
         'author_uri'   => 'Author URI',
+        'discord_uri'  => 'Discord URI',
     ];
 
 
     /**
-     * Plugin metadata
+     * @var array Plugin metadata from file header
      */
     private array $meta;
 
 
     /**
-     * Singleton instance
+     * @var Bootstrap|null Singleton instance
      */
     private static ?Bootstrap $instance = null;
 
 
     /**
      * Get instance
+     *
+     * @return self
      */
     public static function instance() : self {
         return self::$instance ??= new self();
@@ -101,58 +107,11 @@ final class Bootstrap {
      */
     private function __construct() {
         $this->meta = get_file_data( __FILE__, self::HEADER_KEYS );
-
-        register_activation_hook( __FILE__, [ $this, 'activate' ] );
-        register_deactivation_hook( __FILE__, [ $this, 'deactivate' ] );
-
+        $this->check_environment();
         add_action( 'plugins_loaded', [ $this, 'load_files' ] );
+        add_action( 'plugins_loaded', [ $this, 'load_integrations' ], 20 );
+        register_activation_hook( __FILE__, [ $this, 'activate' ] );
     } // End __construct()
-
-
-    /**
-     * Load plugin files
-     *
-     * @return void
-     */
-    public function load_files() {
-        $autoloader = self::path( 'vendor/pdfparser-autoload.php' );
-
-        if ( file_exists( $autoloader ) ) {
-            require_once $autoloader;
-        }
-
-        foreach ( self::FILES as $file ) {
-            require_once self::path( $file );
-        }
-
-        if ( is_admin() ) {
-            foreach ( self::ADMIN_FILES as $file ) {
-                require_once self::path( $file );
-            }
-        }
-    } // End load_files()
-
-
-    /**
-     * Activation
-     *
-     * @return void
-     */
-    public function activate() {
-        require_once self::path( 'inc/db.php' );
-
-        DB::instance()->create_table();
-    } // End activate()
-
-
-    /**
-     * Deactivation
-     *
-     * @return void
-     */
-    public function deactivate() {
-        // Intentionally left blank; table persists across deactivation.
-    } // End deactivate()
 
 
     /**
@@ -161,29 +120,43 @@ final class Bootstrap {
      * @param string $key
      * @return string
      */
-    private static function meta( $key ) : string {
-        return self::instance()->meta[ $key ] ?? '';
+    public function meta( string $key ) : string {
+        return $this->meta[ $key ] ?? '';
     } // End meta()
 
 
     /**
-     * Plugin name
+     * Get plugin name
+     *
+     * @return string
      */
     public static function name() : string {
-        return self::meta( 'name' );
+        return self::instance()->meta( 'name' );
     } // End name()
 
 
     /**
-     * Plugin version
+     * Get plugin version
+     *
+     * @return string
      */
     public static function version() : string {
-        return self::meta( 'version' );
+        return self::instance()->meta( 'version' );
     } // End version()
 
 
-     /**
-     * Check if test mode is enabled
+    /**
+     * Get the text domain, which doubles as the top-level menu slug.
+     *
+     * @return string
+     */
+    public static function textdomain() : string {
+        return self::instance()->meta( 'textdomain' );
+    } // End textdomain()
+
+
+    /**
+     * Check if the site is in test mode via Developer Debug Tools.
      *
      * @return bool
      */
@@ -193,30 +166,29 @@ final class Bootstrap {
 
 
     /**
-     * Script version — busts cache on every load in test mode, otherwise
-     * uses the plugin's actual version number
+     * Get the version string used for enqueued scripts/styles.
      *
      * @return string
      */
     public static function script_version() : string {
-        if ( self::is_test_mode() ) {
-            return 'TEST-' . time();
-        }
-
-        return self::version();
+        return self::is_test_mode() ? (string) time() : self::version();
     } // End script_version()
 
 
     /**
-     * Text domain
+     * Get the plugin's main file path.
+     *
+     * @return string
      */
-    public static function textdomain() : string {
-        return self::meta( 'textdomain' );
-    } // End textdomain()
+    public static function file() : string {
+        return __FILE__;
+    } // End file()
 
 
     /**
-     * Plugin file (basename)
+     * Get the plugin basename.
+     *
+     * @return string
      */
     public static function plugin_file() : string {
         return plugin_basename( __FILE__ );
@@ -224,42 +196,143 @@ final class Bootstrap {
 
 
     /**
-     * Plugin path
+     * Get the plugin's base directory path, with trailing slash.
+     *
+     * @return string
+     */
+    public static function dir() : string {
+        return plugin_dir_path( __FILE__ );
+    } // End dir()
+
+
+    /**
+     * Get an absolute path inside the plugin.
      *
      * @param string $path
      * @return string
      */
-    public static function path( $path = '' ) : string {
-        return plugin_dir_path( __FILE__ ) . ltrim( $path, '/' );
+    public static function path( string $path = '' ) : string {
+        return self::dir() . ltrim( $path, '/' );
     } // End path()
 
 
     /**
-     * Plugin URL
+     * Get a URL inside the plugin.
      *
      * @param string $path
      * @return string
      */
-    public static function url( $path = '' ) : string {
+    public static function url( string $path = '' ) : string {
         return plugin_dir_url( __FILE__ ) . ltrim( $path, '/' );
     } // End url()
 
 
     /**
-     * Settings page URL
+     * Get the Settings tab URL.
+     *
+     * @return string
      */
     public static function settings_url() : string {
-        return admin_url( 'admin.php?page=' . self::textdomain() );
+        return admin_url( 'admin.php?page=' . self::textdomain() . '_settings' );
     } // End settings_url()
 
 
     /**
-     * Prevent cloning/unserializing
+     * Check environment requirements
+     *
+     * @return void
      */
-    public function __clone() {}
-    public function __wakeup() {}
+    private function check_environment() : void {
+        $requires_php = $this->meta( 'requires_php' );
 
-}
+        if ( $requires_php && version_compare( PHP_VERSION, $requires_php, '<' ) ) {
+            add_action( 'admin_notices', [ $this, 'notice_php_version' ] );
+        }
+    } // End check_environment()
 
+
+    /**
+     * Admin notice for unsupported PHP version
+     *
+     * @return void
+     */
+    public function notice_php_version() : void {
+        echo '<div class="notice notice-error"><p>' . esc_html__( 'Prohibited Terms Scanner requires a newer version of PHP. Please contact your host to upgrade.', 'prohibited-terms-scanner' ) . '</p></div>';
+    } // End notice_php_version()
+
+
+    /**
+     * Load plugin files
+     *
+     * @return void
+     */
+    public function load_files() : void {
+        if ( version_compare( PHP_VERSION, $this->meta( 'requires_php' ), '<' ) ) {
+            return;
+        }
+
+        $autoloader = self::path( 'vendor/pdfparser-autoload.php' );
+
+        if ( file_exists( $autoloader ) ) {
+            require_once $autoloader;
+        }
+
+        $files = is_admin() ? array_merge( self::FILES, self::ADMIN_FILES ) : self::FILES;
+
+        foreach ( $files as $file ) {
+            $path = self::path( 'inc/' . $file );
+
+            if ( file_exists( $path ) ) {
+                require_once $path;
+            }
+        }
+
+        do_action( 'ptscanner_loaded' );
+    } // End load_files()
+
+
+    /**
+     * Load each integration's integration.php file from inc/integrations/{slug}/.
+     * Each integration.php gates itself on its companion plugin being active.
+     *
+     * @return void
+     */
+    public function load_integrations() : void {
+        if ( ! class_exists( __NAMESPACE__ . '\\Integrations' ) ) {
+            return;
+        }
+
+        $integrations_dir = self::path( 'inc/integrations/' );
+
+        if ( ! is_dir( $integrations_dir ) ) {
+            return;
+        }
+
+        foreach ( glob( $integrations_dir . '*', GLOB_ONLYDIR ) as $folder ) {
+            $file = $folder . '/integration.php';
+
+            if ( file_exists( $file ) ) {
+                require_once $file;
+            }
+        }
+    } // End load_integrations()
+
+
+    /**
+     * Activation hook
+     *
+     * @return void
+     */
+    public function activate() : void {
+        require_once self::path( 'inc/db.php' );
+
+        DB::instance()->create_table();
+
+        if ( ! get_option( 'ptscanner_activated_time' ) ) {
+            update_option( 'ptscanner_activated_time', time(), false );
+        }
+    } // End activate()
+
+} // End class Bootstrap
 
 Bootstrap::instance();

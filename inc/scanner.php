@@ -14,6 +14,12 @@ class Scanner {
 
 
     /**
+     * Option recording the item being scanned, for fatal error reporting
+     */
+    public const OPT_LAST_PROCESSED = 'ptscanner_last_processed';
+
+
+    /**
      * The single instance of the class
      *
      * @var self|null
@@ -57,8 +63,28 @@ class Scanner {
 
         $callback = $type[ 'source_callback' ];
 
-        return call_user_func( $callback, $terms, $offset, $limit );
+        try {
+            return call_user_func( $callback, $terms, $offset, $limit );
+        } finally {
+            delete_option( self::OPT_LAST_PROCESSED );
+        }
     } // End run_batch()
+
+
+    /**
+     * Record the item being scanned, so a fatal error or timeout can be traced to it.
+     *
+     * @param string $type    Location type slug.
+     * @param int    $item_id Post, attachment or ERI file ID.
+     * @return void
+     */
+    public function mark_processing( string $type, int $item_id ) : void {
+        update_option( self::OPT_LAST_PROCESSED, [
+            'type'    => $type,
+            'post_id' => $item_id,
+            'time'    => current_time( 'mysql' ),
+        ], false );
+    } // End mark_processing()
 
 
     /**
@@ -66,42 +92,119 @@ class Scanner {
      *
      * @param string $text
      * @param array  $terms
+     * @param bool   $is_html Strip tags first. Pass false for text extracted from files.
      * @return array Array of [ 'term', 'snippet' ] for each occurrence found
      */
-    public function match_terms( $text, $terms ) : array {
-        $matches = [];
-
+    public function match_terms( $text, $terms, bool $is_html = true ) : array {
         if ( '' === trim( (string) $text ) ) {
-            return $matches;
+            return [];
         }
 
-        $plain_text = wp_strip_all_tags( str_replace( '>', '> ', $text ) );
-        $plain_text = preg_replace( '/\s+/', ' ', $plain_text );
-        $padding    = Settings::instance()->get_snippet_padding();
+        if ( $is_html ) {
+            $plain_text = wp_strip_all_tags( str_replace( '>', '> ', $text ) );
+            $plain_text = preg_replace( '/\s+/', ' ', $plain_text );
+        } else {
+            $plain_text = $this->normalize_file_text( (string) $text );
+        }
+
+        return array_map( function ( $match ) {
+            return [
+                'term'    => $match[ 'term' ],
+                'snippet' => $match[ 'snippet' ],
+            ];
+        }, $this->find_matches( (string) $plain_text, $terms ) );
+    } // End match_terms()
+
+
+    /**
+     * Find every occurrence of every term in already-plain text, with byte offsets
+     *
+     * @param string $plain_text
+     * @param array  $terms
+     * @return array Array of [ 'term', 'offset', 'length', 'snippet' ]
+     */
+    private function find_matches( string $plain_text, array $terms ) : array {
+        static $logged = [];
+
+        $matches = [];
+        $padding = Settings::instance()->get_snippet_padding();
 
         foreach ( $terms as $term_data ) {
-            $term           = $term_data[ 'term' ];
-            $case_sensitive = ! empty( $term_data[ 'case_sensitive' ] );
-            $strict         = ! empty( $term_data[ 'strict' ] );
+            $term    = $term_data[ 'term' ];
+            $pattern = '/' . $this->build_pattern( $term, ! empty( $term_data[ 'strict' ] ) ) . '/' . ( empty( $term_data[ 'case_sensitive' ] ) ? 'iu' : 'u' );
+            $result  = preg_match_all( $pattern, $plain_text, $found, PREG_OFFSET_CAPTURE );
 
-            $pattern = $this->build_pattern( $term, $strict );
-            $flags   = $case_sensitive ? 'u' : 'iu';
+            if ( false === $result ) {
+                $error = preg_last_error_msg();
 
-            if ( preg_match_all( '/' . $pattern . '/' . $flags, $plain_text, $found, PREG_OFFSET_CAPTURE ) ) {
-                foreach ( $found[ 0 ] as $occurrence ) {
-                    $offset = $occurrence[ 1 ];
-                    $length = strlen( $occurrence[ 0 ] );
-
-                    $matches[] = [
-                        'term'    => $term,
-                        'snippet' => $this->get_context_snippet( $plain_text, $offset, $length, $padding ),
-                    ];
+                if ( ! isset( $logged[ $term . '|' . $error ] ) ) {
+                    $logged[ $term . '|' . $error ] = true;
+                    ErrorLog::instance()->log( 'match', 'Could not search for a term; the text was skipped.', [ 'term' => $term, 'error' => $error ] );
                 }
+
+                continue;
+            }
+
+            foreach ( $found[ 0 ] as $occurrence ) {
+                $offset = $occurrence[ 1 ];
+                $length = strlen( $occurrence[ 0 ] );
+
+                $matches[] = [
+                    'term'    => $term,
+                    'offset'  => $offset,
+                    'length'  => $length,
+                    'snippet' => $this->get_context_snippet( $plain_text, $offset, $length, $padding ),
+                ];
             }
         }
 
         return $matches;
-    } // End match_terms()
+    } // End find_matches()
+
+
+    /**
+     * Normalize text extracted from a file so terms match the way they read: valid UTF-8,
+     * no invisible characters, ligatures split, typographic quotes and spaces made plain.
+     *
+     * @param string $text
+     * @return string
+     */
+    public function normalize_file_text( string $text ) : string {
+        if ( ! preg_match( '//u', $text ) ) {
+            $text = function_exists( 'mb_convert_encoding' ) ? mb_convert_encoding( $text, 'UTF-8', 'Windows-1252' ) : wp_check_invalid_utf8( $text, true );
+        }
+
+        $replacements = [
+            "\u{FEFF}" => '',
+            "\u{00AD}" => '',
+            "\u{200B}" => '',
+            "\u{200C}" => '',
+            "\u{200D}" => '',
+            "\u{FB00}" => 'ff',
+            "\u{FB01}" => 'fi',
+            "\u{FB02}" => 'fl',
+            "\u{FB03}" => 'ffi',
+            "\u{FB04}" => 'ffl',
+            "\u{FB05}" => 'st',
+            "\u{FB06}" => 'st',
+            "\u{2018}" => "'",
+            "\u{2019}" => "'",
+            "\u{201C}" => '"',
+            "\u{201D}" => '"',
+        ];
+
+        /**
+         * Filter the character replacements applied to text extracted from files.
+         *
+         * @param array $replacements Search => replace.
+         */
+        $replacements = (array) apply_filters( 'ptscanner_file_text_replacements', $replacements );
+
+        $text = strtr( $text, $replacements );
+        $text = preg_replace( '/[\s\x{00A0}\x{2000}-\x{200A}\x{202F}\x{205F}\x{3000}]+/u', ' ', $text );
+
+        return trim( (string) $text );
+    } // End normalize_file_text()
 
 
     /**
@@ -176,7 +279,7 @@ class Scanner {
         $rows     = [];
 
         foreach ( $post_ids as $post_id ) {
-            if ( Omits::instance()->is_omitted( 'post', $post_id ) ) {
+            if ( $this->should_skip_post( $post_id ) ) {
                 continue;
             }
 
@@ -205,15 +308,11 @@ class Scanner {
         $rows     = [];
 
         foreach ( $post_ids as $post_id ) {
-            if ( Omits::instance()->is_omitted( 'post', $post_id ) ) {
+            if ( $this->should_skip_post( $post_id ) ) {
                 continue;
             }
 
-            update_option( 'ptscanner_last_processed', [
-                'type'    => 'content',
-                'post_id' => $post_id,
-                'time'    => current_time( 'mysql' ),
-            ], false );
+            $this->mark_processing( 'content', $post_id );
 
             $raw_content = get_post_field( 'post_content', $post_id );
             $content     = $this->safe_do_shortcode( $raw_content, $post_id );
@@ -321,7 +420,7 @@ class Scanner {
         $rows     = [];
 
         foreach ( $post_ids as $post_id ) {
-            if ( Omits::instance()->is_omitted( 'post', $post_id ) ) {
+            if ( $this->should_skip_post( $post_id ) ) {
                 continue;
             }
 
@@ -541,8 +640,12 @@ class Scanner {
             $file = get_attached_file( $attachment_id );
 
             if ( ! $file || ! file_exists( $file ) ) {
+                ErrorLog::instance()->log( 'file_content', 'File is missing from the server, skipped.', [ 'attachment_id' => $attachment_id, 'file' => (string) $file ] );
+
                 continue;
             }
+
+            $this->mark_processing( 'file_content', $attachment_id );
 
             $mime_type = get_post_mime_type( $attachment_id );
 
@@ -557,10 +660,10 @@ class Scanner {
             } elseif ( 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' === $mime_type ) {
                 $content = $this->extract_docx_text( $file );
             } else {
-                $content = file_get_contents( $file );
+                $content = $this->read_text_file( $file );
             }
 
-            $matches = $this->match_terms( $content, $terms );
+            $matches = $this->match_terms( $content, $terms, false );
 
             foreach ( $matches as $match ) {
                 $rows[] = $this->build_row( $match, 'file_content', 'attachment', $attachment_id, wp_get_attachment_url( $attachment_id ) );
@@ -601,32 +704,100 @@ class Scanner {
             return $rows;
         }
 
+        $page_texts = [];
+
         foreach ( $pages as $index => $page ) {
             try {
-                $text = $page->getText();
+                $page_texts[ $index ] = $this->normalize_file_text( (string) $page->getText() );
             } catch ( \Throwable $e ) {
-                continue;
+                $page_texts[ $index ] = '';
+                ErrorLog::instance()->log( 'file_content', 'Could not read a PDF page, skipped.', [ 'file' => $file_path, 'page' => $index + 1, 'error' => $e->getMessage() ] );
             }
+        }
 
-            $matches = $this->match_terms( $text, $terms );
+        $matches = [];
 
-            foreach ( $matches as $match ) {
-                $row = [
-                    'term'            => $match[ 'term' ],
-                    'location_type'   => $location_type,
-                    'source_type'     => $source_type,
-                    'source_id'       => $source_id,
-                    'source_url'      => $url,
-                    'context_snippet' => $match[ 'snippet' ],
-                    'file_page'       => $index + 1,
-                    'match_hash'      => $this->build_match_hash( $match[ 'term' ], $location_type, $source_id . '-p' . ( $index + 1 ), $match[ 'snippet' ] ),
-                ];
-                $rows[] = $row;
+        foreach ( $page_texts as $index => $text ) {
+            foreach ( $this->find_matches( $text, $terms ) as $match ) {
+                $matches[] = [ $match, $index ];
             }
+        }
+
+        foreach ( $this->find_cross_page_matches( $page_texts, $terms ) as $match ) {
+            $matches[] = $match;
+        }
+
+        foreach ( $matches as [ $match, $index ] ) {
+            $rows[] = [
+                'term'            => $match[ 'term' ],
+                'location_type'   => $location_type,
+                'source_type'     => $source_type,
+                'source_id'       => $source_id,
+                'source_url'      => $url,
+                'context_snippet' => $match[ 'snippet' ],
+                'file_page'       => $index + 1,
+                'match_hash'      => $this->build_match_hash( $match[ 'term' ], $location_type, $source_id . '-p' . ( $index + 1 ), $match[ 'snippet' ] ),
+            ];
         }
 
         return $rows;
     } // End scan_pdf_by_page()
+
+
+    /**
+     * Find phrases that start at the end of one page and finish at the top of the next.
+     * Only matches that cross the page break are returned; the rest are found per page.
+     *
+     * @param array $page_texts Normalized page text, keyed by zero-based page index.
+     * @param array $terms
+     * @return array Array of [ match, page index where the match starts ]
+     */
+    private function find_cross_page_matches( array $page_texts, array $terms ) : array {
+        $longest = 0;
+
+        foreach ( $terms as $term_data ) {
+            $longest = max( $longest, mb_strlen( $term_data[ 'term' ] ) );
+        }
+
+        $window  = $longest + Settings::instance()->get_snippet_padding();
+        $indexes = array_keys( $page_texts );
+        $found   = [];
+
+        foreach ( $indexes as $position => $index ) {
+            $next = $indexes[ $position + 1 ] ?? null;
+
+            if ( null === $next || '' === $page_texts[ $index ] || '' === $page_texts[ $next ] ) {
+                continue;
+            }
+
+            $tail  = mb_substr( $page_texts[ $index ], -$window );
+            $head  = mb_substr( $page_texts[ $next ], 0, $window );
+            $break = strlen( $tail );
+
+            foreach ( $this->find_matches( $tail . ' ' . $head, $terms ) as $match ) {
+                if ( $match[ 'offset' ] < $break && $match[ 'offset' ] + $match[ 'length' ] > $break ) {
+                    $found[] = [ $match, $index ];
+                }
+            }
+        }
+
+        return $found;
+    } // End find_cross_page_matches()
+
+
+    /**
+     * Whether a post is skipped: omitted, or not public-facing when "Only scan public pages" is on.
+     *
+     * @param int $post_id
+     * @return bool
+     */
+    public function should_skip_post( int $post_id ) : bool {
+        if ( Omits::instance()->is_omitted( 'post', $post_id ) ) {
+            return true;
+        }
+
+        return Settings::instance()->is_public_only() && ! Integrations::is_public_post( $post_id );
+    } // End should_skip_post()
 
 
     /**
@@ -650,14 +821,15 @@ class Scanner {
         }
 
         $query = new \WP_Query( [
-            'post_type'      => $post_types,
-            'post_status'    => 'publish',
-            'posts_per_page' => $limit,
-            'offset'         => $offset,
-            'orderby'        => 'ID',
-            'order'          => 'ASC',
-            'fields'         => 'ids',
-            'no_found_rows'  => true,
+            'post_type'        => $post_types,
+            'post_status'      => 'publish',
+            'posts_per_page'   => $limit,
+            'offset'           => $offset,
+            'orderby'          => 'ID',
+            'order'            => 'ASC',
+            'fields'           => 'ids',
+            'no_found_rows'    => true,
+            'suppress_filters' => true,
         ] );
 
         return $query->posts;
@@ -674,14 +846,15 @@ class Scanner {
      */
     private function get_attachment_batch( $offset, $limit, $mimes = [] ) : array {
         $args = [
-            'post_type'      => 'attachment',
-            'post_status'    => 'inherit',
-            'posts_per_page' => $limit,
-            'offset'         => $offset,
-            'orderby'        => 'ID',
-            'order'          => 'ASC',
-            'fields'         => 'ids',
-            'no_found_rows'  => true,
+            'post_type'        => 'attachment',
+            'post_status'      => 'inherit',
+            'posts_per_page'   => $limit,
+            'offset'           => $offset,
+            'orderby'          => 'ID',
+            'order'            => 'ASC',
+            'fields'           => 'ids',
+            'no_found_rows'    => true,
+            'suppress_filters' => true,
         ];
 
         if ( ! empty( $mimes ) ) {
@@ -803,8 +976,9 @@ class Scanner {
             return '';
         }
 
+        $xml  = preg_replace( '/<w:(tab|br|cr)\b[^>]*\/>/', ' ', $xml );
         $xml  = str_replace( '</w:p>', ' </w:p>', $xml );
-        $text = wp_strip_all_tags( $xml );
+        $text = $this->normalize_file_text( html_entity_decode( wp_strip_all_tags( $xml ), ENT_QUOTES | ENT_XML1, 'UTF-8' ) );
 
         if ( '' === trim( $text ) ) {
             ErrorLog::instance()->log( 'file_content', 'Extracted empty text from .docx: ' . $file_path );
@@ -842,7 +1016,7 @@ class Scanner {
             ErrorLog::instance()->log( 'file_content', 'Extracted empty text from PDF: ' . $file_path );
         }
 
-        return (string) $text;
+        return $this->normalize_file_text( (string) $text );
     } // End extract_pdf_text()
 
 
@@ -865,11 +1039,30 @@ class Scanner {
         }
 
         if ( in_array( $ext, [ 'txt', 'csv' ], true ) ) {
-            return (string) file_get_contents( $file_path );
+            return $this->read_text_file( $file_path );
         }
 
         return '';
     } // End extract_file_content_for_path()
+
+
+    /**
+     * Read a plain text file, logging when it can't be read
+     *
+     * @param string $file_path
+     * @return string
+     */
+    private function read_text_file( string $file_path ) : string {
+        $text = file_get_contents( $file_path ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- local file on this server.
+
+        if ( false === $text ) {
+            ErrorLog::instance()->log( 'file_content', 'Could not read file, skipped.', [ 'file' => $file_path ] );
+
+            return '';
+        }
+
+        return $this->normalize_file_text( $text );
+    } // End read_text_file()
 
 
     /**
@@ -886,15 +1079,17 @@ class Scanner {
             return;
         }
 
-        $last_processed = get_option( 'ptscanner_last_processed', null );
+        $last_processed = get_option( self::OPT_LAST_PROCESSED, null );
 
-        if ( null === $last_processed ) {
+        if ( ! is_array( $last_processed ) ) {
             return;
         }
 
+        delete_option( self::OPT_LAST_PROCESSED );
+
         ErrorLog::instance()->log(
             'fatal_during_scan',
-            'A fatal error/timeout occurred while processing post ID ' . $last_processed[ 'post_id' ] . ' (type: ' . $last_processed[ 'type' ] . '). PHP error: ' . $error[ 'message' ]
+            'A fatal error/timeout occurred while scanning item ID ' . $last_processed[ 'post_id' ] . ' (type: ' . $last_processed[ 'type' ] . '). PHP error: ' . $error[ 'message' ]
         );
     } // End log_fatal_during_scan()
 

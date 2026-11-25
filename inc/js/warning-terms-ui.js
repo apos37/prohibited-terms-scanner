@@ -5,7 +5,7 @@ jQuery( function ( $ ) {
      *
      * Simpler than the scanner's terms-ui: no per-term case/strict override,
      * no pills/accordion collapse — just an editable card list serialized to
-     * the same JSON shape on form submit.
+     * the same JSON shape in a hidden field read by settings.js.
      */
     const ptscannerWarningTermsUi = {
 
@@ -26,7 +26,7 @@ jQuery( function ( $ ) {
 
             this.renderCards();
             this.bindEvents();
-            this.syncHiddenField();
+            this.syncHiddenField( false );
         }, // End init()
 
 
@@ -61,16 +61,12 @@ jQuery( function ( $ ) {
                 this.syncHiddenField();
             } );
 
-            $( document.getElementById( 'ptscanner-warning-terms-json' ) ).closest( 'form' ).on( 'submit', () => {
-                this.syncHiddenField();
-            } );
-
             $( document ).on( 'click', '#ptscanner-clear-all-warning-terms', () => {
                 if ( ! this.terms.length ) {
                     return;
                 }
 
-                if ( ! confirm( 'Clear all terms from the list? This cannot be undone.' ) ) {
+                if ( ! confirm( ptscanner_data.strings.confirmClearAllTerms ) ) {
                     return;
                 }
 
@@ -168,10 +164,16 @@ jQuery( function ( $ ) {
 
 
         /**
-         * Serialize the term list into the hidden field before submit
+         * Serialize the term list into the hidden field that the settings save reads
+         *
+         * @param {boolean} notify Trigger change so the unsaved-changes reminder shows. Default true.
          */
-        syncHiddenField: function () {
-            $( '#ptscanner-warning-terms-json' ).val( JSON.stringify( this.terms ) );
+        syncHiddenField: function ( notify = true ) {
+            const field = $( '#ptscanner-warning-terms-json' ).val( JSON.stringify( this.terms ) );
+
+            if ( notify ) {
+                field.trigger( 'change' );
+            }
         }, // End syncHiddenField()
 
     };

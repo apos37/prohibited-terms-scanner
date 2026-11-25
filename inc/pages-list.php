@@ -55,7 +55,7 @@ class PagesList {
         ] );
 
         $public_ids = array_values( array_filter( $query->posts, function ( $post_id ) {
-            return RoleVisibility::instance()->is_public( $post_id );
+            return Integrations::is_public_post( $post_id );
         } ) );
 
         $total_pages = (int) ceil( count( $public_ids ) / $per_page );

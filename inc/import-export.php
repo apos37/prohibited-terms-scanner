@@ -1,6 +1,6 @@
 <?php
 /**
- * Import/Export handling
+ * Settings export and import (Settings > Advanced)
  */
 
 namespace PluginRx\ProhibitedTermsScanner;
@@ -11,11 +11,16 @@ class ImportExport {
 
 
     /**
-     * Nonce action
+     * Legacy (1.2.x) export keys mapped to the keys Settings::apply() reads
      *
-     * @var string
+     * @var array
      */
-    private string $nonce = 'ptscanner_import_export_nonce';
+    private const LEGACY_KEYS = [
+        'enabled_location_types' => 'location_types',
+        'enabled_post_types'     => 'post_types',
+        'enabled_taxonomies'     => 'taxonomies',
+        'shortcode_roles'        => 'scan_roles',
+    ];
 
 
     /**
@@ -40,160 +45,115 @@ class ImportExport {
      * Constructor
      */
     private function __construct() {
-        add_action( 'wp_ajax_ptscanner_export', [ $this, 'handle_export' ] );
-        add_action( 'wp_ajax_ptscanner_import', [ $this, 'handle_import' ] );
+        add_action( 'wp_ajax_ptscanner_export', [ $this, 'ajax_export' ] );
+        add_action( 'wp_ajax_ptscanner_import', [ $this, 'ajax_import' ] );
     } // End __construct()
 
 
     /**
-     * Get the nonce action name
-     *
-     * @return string
-     */
-    public function nonce_action() : string {
-        return $this->nonce;
-    } // End nonce_action()
-
-
-    /**
-     * Handle export request
+     * Verify the settings nonce and manage capability, or end the request.
      *
      * @return void
      */
-    public function handle_export() {
-        check_ajax_referer( $this->nonce, 'nonce' );
+    private function verify_request() : void {
+        check_ajax_referer( Settings::NONCE, 'nonce' );
 
-        if ( ! current_user_can( 'manage_options' ) ) {
-            wp_send_json_error( [ 'message' => __( 'Permission denied.', 'prohibited-terms-scanner' ) ] );
+        if ( ! Access::can_manage() ) {
+            wp_send_json_error( __( 'Insufficient permissions.', 'prohibited-terms-scanner' ), 403 );
         }
+    } // End verify_request()
+
+
+    /**
+     * AJAX: return the export payload for the browser to download.
+     *
+     * @return void
+     */
+    public function ajax_export() : void {
+        $this->verify_request();
 
         $settings = Settings::instance();
 
-        $export_data = [
+        $export = [
             'metadata' => [
+                'plugin'         => 'prohibited-terms-scanner',
                 'domain'         => wp_parse_url( home_url(), PHP_URL_HOST ),
                 'export_date'    => current_time( 'mysql' ),
                 'plugin_version' => Bootstrap::version(),
             ],
-            'terms'                  => $settings->get_terms(),
-            'warning_terms'          => $settings->get_warning_terms(),
-            'warning_enabled'        => $settings->is_warning_enabled(),
-            'enabled_location_types' => $settings->get_enabled_location_types(),
-            'enabled_post_types'     => $settings->get_enabled_post_types(),
-            'batch_size'             => $settings->get_batch_size(),
-            'snippet_padding'        => $settings->get_snippet_padding(),
-            'default_case_sensitive' => $settings->get_default_case_sensitive(),
-            'default_strict'         => $settings->get_default_strict(),
-            'shortcode_roles'        => $settings->get_shortcode_roles(),
-            'pdf_page_lookup'        => $settings->get_pdf_page_lookup(),
-            'cron_enabled'           => $settings->is_cron_enabled(),
-            'cron_frequency'         => $settings->get_cron_frequency(),
+            'terms'    => $settings->get_terms(),
+            'settings' => $settings->current(),
         ];
 
+        /**
+         * Filter the settings export payload.
+         *
+         * @param array $export
+         */
+        $export = (array) apply_filters( 'ptscanner_export_data', $export );
+
         wp_send_json_success( [
-            'filename' => 'prohibited-terms-scanner-export-' . gmdate( 'Y-m-d' ) . '.json',
-            'data'     => $export_data,
+            'filename' => 'prohibited-terms-scanner-settings-' . gmdate( 'Y-m-d' ) . '.json',
+            'data'     => $export,
         ] );
-    } // End handle_export()
+    } // End ajax_export()
 
 
     /**
-     * Handle import request
+     * AJAX: import a payload read in the browser. Accepts 1.3+ and legacy 1.2.x exports.
      *
      * @return void
      */
-    public function handle_import() {
-        check_ajax_referer( $this->nonce, 'nonce' );
+    public function ajax_import() : void {
+        $this->verify_request();
 
-        if ( ! current_user_can( 'manage_options' ) ) {
-            wp_send_json_error( [ 'message' => __( 'Permission denied.', 'prohibited-terms-scanner' ) ] );
-        }
+        $payload = isset( $_POST[ 'payload' ] ) ? wp_unslash( $_POST[ 'payload' ] ) : ''; // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- nonce checked in verify_request(); raw JSON, every value is sanitized in Settings::sanitize_terms() and Settings::apply().
+        $data    = is_string( $payload ) ? json_decode( trim( str_replace( "\xEF\xBB\xBF", '', $payload ) ), true ) : null;
 
-        if ( ! isset( $_FILES[ 'import_file' ] ) || empty( $_FILES[ 'import_file' ][ 'tmp_name' ] ) ) {
-            wp_send_json_error( [ 'message' => __( 'No file uploaded.', 'prohibited-terms-scanner' ) ] );
-        }
-
-        $file_path = sanitize_text_field( wp_unslash( $_FILES[ 'import_file' ][ 'tmp_name' ] ) );
-
-        if ( ! is_uploaded_file( $file_path ) ) {
-            wp_send_json_error( [ 'message' => __( 'Invalid file upload.', 'prohibited-terms-scanner' ) ] );
-        }
-
-        $json_data = file_get_contents( $file_path );
-        $json_data = str_replace( "\xEF\xBB\xBF", '', $json_data );
-        $data      = json_decode( trim( $json_data ), true );
-
-        if ( json_last_error() !== JSON_ERROR_NONE ) {
-            wp_send_json_error( [
-                /* translators: %s: JSON error message */
-                'message' => sprintf( __( 'JSON Error: %s', 'prohibited-terms-scanner' ), json_last_error_msg() ),
-            ] );
-        }
-
-        if ( ! is_array( $data ) || ! isset( $data[ 'terms' ] ) ) {
-            wp_send_json_error( [ 'message' => __( 'Invalid file structure. This does not look like a Prohibited Terms Scanner export.', 'prohibited-terms-scanner' ) ] );
+        if ( ! is_array( $data ) || ! isset( $data[ 'terms' ] ) || ! is_array( $data[ 'terms' ] ) ) {
+            wp_send_json_error( __( 'That file is not a valid Prohibited Terms Scanner export.', 'prohibited-terms-scanner' ) );
         }
 
         $settings = Settings::instance();
+        $incoming = isset( $data[ 'settings' ] ) && is_array( $data[ 'settings' ] ) ? $data[ 'settings' ] : $this->map_legacy( $data );
 
-        if ( isset( $data[ 'terms' ] ) && is_array( $data[ 'terms' ] ) ) {
-            $settings->save_terms( $data[ 'terms' ] );
+        $settings->save_terms( $data[ 'terms' ] );
+        $settings->apply( array_merge( $settings->current(), $incoming ) );
+
+        /**
+         * Fires after settings are imported.
+         *
+         * @param array $data Decoded import file. Sanitize anything you read from it.
+         */
+        do_action( 'ptscanner_settings_imported', $data );
+
+        wp_send_json_success( __( 'Settings imported. Reloading...', 'prohibited-terms-scanner' ) );
+    } // End ajax_import()
+
+
+    /**
+     * Convert a flat 1.2.x export into the keys Settings::apply() reads.
+     *
+     * @param array $data
+     * @return array
+     */
+    private function map_legacy( array $data ) : array {
+        $mapped = $data;
+
+        foreach ( self::LEGACY_KEYS as $old => $new ) {
+            if ( isset( $data[ $old ] ) ) {
+                $mapped[ $new ] = $data[ $old ];
+            }
         }
 
         if ( isset( $data[ 'warning_terms' ] ) && is_array( $data[ 'warning_terms' ] ) ) {
-            $settings->save_warning_terms( $data[ 'warning_terms' ] );
+            $mapped[ 'warning_terms_json' ] = wp_json_encode( $data[ 'warning_terms' ] );
         }
 
-        if ( isset( $data[ 'warning_enabled' ] ) ) {
-            update_option( 'ptscanner_warning_enabled', (bool) $data[ 'warning_enabled' ], false );
-        }
+        unset( $mapped[ 'terms' ], $mapped[ 'metadata' ], $mapped[ 'warning_terms' ] );
 
-        if ( isset( $data[ 'enabled_location_types' ] ) && is_array( $data[ 'enabled_location_types' ] ) ) {
-            update_option( 'ptscanner_location_types_enabled', array_map( 'sanitize_key', $data[ 'enabled_location_types' ] ), false );
-        }
-
-        if ( isset( $data[ 'enabled_post_types' ] ) && is_array( $data[ 'enabled_post_types' ] ) ) {
-            update_option( 'ptscanner_post_types_enabled', array_map( 'sanitize_key', $data[ 'enabled_post_types' ] ), false );
-        }
-
-        if ( isset( $data[ 'batch_size' ] ) ) {
-            update_option( 'ptscanner_batch_size', max( 1, absint( $data[ 'batch_size' ] ) ), false );
-        }
-
-        if ( isset( $data[ 'pdf_page_lookup' ] ) ) {
-            update_option( 'ptscanner_pdf_page_lookup', (bool) $data[ 'pdf_page_lookup' ], false );
-        }
-
-        if ( isset( $data[ 'snippet_padding' ] ) ) {
-            update_option( 'ptscanner_snippet_padding', max( 0, absint( $data[ 'snippet_padding' ] ) ), false );
-        }
-
-        if ( isset( $data[ 'default_case_sensitive' ] ) ) {
-            update_option( 'ptscanner_default_case_sensitive', (bool) $data[ 'default_case_sensitive' ], false );
-        }
-
-        if ( isset( $data[ 'default_strict' ] ) ) {
-            update_option( 'ptscanner_default_strict', (bool) $data[ 'default_strict' ], false );
-        }
-
-        if ( isset( $data[ 'shortcode_roles' ] ) && is_array( $data[ 'shortcode_roles' ] ) ) {
-            update_option( 'ptscanner_shortcode_roles', array_map( 'sanitize_key', $data[ 'shortcode_roles' ] ), false );
-        }
-
-        if ( isset( $data[ 'cron_enabled' ] ) ) {
-            update_option( 'ptscanner_cron_enabled', (bool) $data[ 'cron_enabled' ], false );
-        }
-
-        if ( isset( $data[ 'cron_frequency' ] ) ) {
-            $frequency = sanitize_key( $data[ 'cron_frequency' ] );
-            update_option( 'ptscanner_cron_frequency', in_array( $frequency, [ 'daily', 'weekly', 'monthly' ], true ) ? $frequency : 'daily', false );
-        }
-
-        // Reschedule cron in case enabled/frequency changed via import.
-        do_action( 'ptscanner_reschedule_cron' );
-
-        wp_send_json_success( [ 'message' => __( 'Settings imported successfully!', 'prohibited-terms-scanner' ) ] );
-    } // End handle_import()
+        return $mapped;
+    } // End map_legacy()
 
 }
 

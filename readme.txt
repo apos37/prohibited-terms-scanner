@@ -2,9 +2,9 @@
 Contributors: apos37
 Tags: content moderation, search, compliance, media library, scanner
 Requires at least: 6.0
-Tested up to: 7.0
-Requires PHP: 7.4
-Stable tag: 1.2.1
+Tested up to: 7.1
+Requires PHP: 8.0
+Stable tag: 1.3.0
 License: GPLv2 or later
 License URI: http://www.gnu.org/licenses/gpl-2.0.txt
 
@@ -26,14 +26,19 @@ Paste a list of terms or phrases, choose where to search, and run a scan. Result
 * Results table with highlighted context snippets, post type/file type labels, source titles, direct links, and a highlight-and-blink indicator on the linked page
 * Mark individual results as OK to exclude them from future scans, or clear them once resolved, including a Clear All option
 * Omit specific posts, pages, media, or files from all future scans — directly from the Results page or via a quick action link (with bulk action support) on your admin list tables, viewable and manageable from a dedicated Omitted Sources page
-* Front-end shortcode for staff to run scans without accessing wp-admin, restricted to roles you choose, including its own results table
+* External Links scan that lists every outbound link on your public content, with notes and status filters
+* Two access levels: View roles can review results and external links (read-only), Scan roles can also run scans, mark results, add notes, and omit sources
+* Front-end shortcode for Scan roles to run scans without accessing wp-admin, styled to match the admin screens, with its own results, public pages, and external links panels
+* Optional "Only Scan Public Pages" setting, with Deadbolt integration to skip restricted pages
+* Inherits your Admin Help Docs colors when that plugin is active
 * Optional warning when saving a post/page, uploading a file, or editing alt text that contains a monitored term (warns, does not block)
 * Optional scheduled (daily/weekly/monthly) automatic scanning using your saved terms and search locations, with a status readout showing next/last run
 * A count badge on the admin menu showing how many unresolved results need attention
-* Import/export your term list and settings as JSON to move between sites
+* Import/export your term list and settings as JSON to move between sites, or reset settings to defaults
 * Batch size and context snippet length are both configurable for performance tuning
 * An Errors log for troubleshooting scan issues without digging through server logs
-* Extendable: developers can register additional scan locations for their own integrations
+* Extendable: developers can register additional scan locations and use the actions and filters listed below
+* Optional removal of all plugin data on uninstall (off by default)
 
 This plugin does not automatically remove or redact anything it finds. It is a discovery tool to help you locate and manually review content that may need attention.
 
@@ -65,7 +70,13 @@ Legacy Word documents (.doc, the pre-2007 binary format) are not supported out o
 A full scan clears previously flagged (unresolved) results before running, so your results always reflect the current state of your site. Results you've marked as OK are kept and are not re-flagged unless the same term is found in a new location.
 
 = Can non-admin users run scans? =
-Yes, using the `[prohibited_terms_scanner]` shortcode on any page. Access is restricted to the roles you choose in Settings; there is no public/logged-out option.
+Yes. In Settings, choose View roles (can see the Results and External Links tabs, read-only) and Scan roles (can also run scans, mark results, add notes, and omit sources). Scan roles can also use the `[prohibited_terms_scanner]` shortcode on any page. Settings and the Errors log are always limited to administrators. There is no public/logged-out option.
+
+= Does uninstalling delete my data? =
+Only if you choose to. Enable "Remove all data on uninstall" in Settings before deleting the plugin to remove its database tables, options, and post meta. Otherwise your terms, settings, and results are kept in case you reinstall. Scheduled scans are always unscheduled on uninstall.
+
+= Is PDF scanning supported on all servers? =
+PDF text extraction requires the PHP mbstring extension, which is enabled on most hosts. Scanned (image-only) PDFs have no text to read and cannot be searched.
 
 = Can I omit specific content from being scanned? =
 Yes. You can omit individual posts, pages, media, or files from all future scans, either from the Results page (which also clears any existing flagged results for that source) or via a quick "Omit from Terms Scanner" action link on your Posts, Pages, and Media list tables, with bulk action support. Omitted sources are managed from their own Omitted Sources page.
@@ -76,6 +87,44 @@ Yes. In Settings, you can enable daily, weekly, or monthly scheduled scanning us
 = Does the save/upload warning stop me from saving or uploading? =
 No. It warns you that a monitored term was found so you can double check before continuing, but it will not block you from proceeding.
 
+== Third-Party Libraries ==
+
+This plugin bundles the following library:
+
+* **PdfParser** by Sebastien Malot, version 2.12.5 - https://github.com/smalot/pdfparser
+  License: LGPL-3.0 (see `vendor/pdfparser/LICENSE.txt` and `vendor/pdfparser/GPL-3.0.txt`)
+  Used to extract text from PDF files for optional file content scanning. The library was namespace-prefixed and relocated to avoid conflicts with other plugins; all modifications are described in `vendor/pdfparser/NOTICE.txt`.
+
+== Developer Hooks ==
+
+**Filters**
+
+* `ptscanner_location_types` - Add or change scan locations.
+* `ptscanner_excluded_post_types` - Post types never offered for scanning.
+* `ptscanner_integration_managed_post_types` - Post types handled by an integration instead of the core scanner.
+* `ptscanner_is_public_post( $is_public, $post_id )` - Decide whether a post counts as public for "Only Scan Public Pages".
+* `ptscanner_deadbolt_url_param_is_public( $is_public, $post_id )` - Whether Deadbolt URL-parameter pages count as public.
+* `ptscanner_file_content_mimes` - File types whose content can be scanned.
+* `ptscanner_file_text_replacements` - Character replacements applied to extracted file text before matching.
+* `ptscanner_source_title( $title, $row )` - Source title shown for a result.
+* `ptscanner_cron_max_batches_per_type` - Safety cap on batches per location during scheduled scans (default 500).
+* `ptscanner_can_view( $can, $user_id )` / `ptscanner_can_scan( $can, $user_id )` - Override access checks.
+* `ptscanner_assignable_roles` - Roles offered in the View and Scan role settings.
+* `ptscanner_current_settings` / `ptscanner_export_data` / `ptscanner_resettable_options` - Adjust settings, exported data, and options cleared by Reset.
+* `ptscanner_admin_tabs` / `ptscanner_help_links` / `ptscanner_header_logo` - Customize the admin header and tabs.
+* `ptscanner_script_data` / `ptscanner_admin_script_data` - Data passed to the plugin's JavaScript.
+* `ptscanner_theme_colors` / `ptscanner_dynamic_css( $css, $type )` - Customize colors and generated CSS.
+* `ptscanner_test_mode` - Enable test mode behavior.
+
+**Actions**
+
+* `ptscanner_loaded` - After the plugin has loaded.
+* `ptscanner_admin_enqueue( $page )` - After admin assets are enqueued.
+* `ptscanner_subheader_left( $page )` / `ptscanner_subheader_right( $page )` - Output in the admin subheader.
+* `ptscanner_settings_saved( $settings )` / `ptscanner_settings_imported( $data )` / `ptscanner_settings_reset` - After settings change.
+* `ptscanner_reschedule_cron` - Reschedule the scheduled scan.
+* `ptscanner_cron_scan_complete( $total_inserted )` - After a scheduled scan finishes.
+
 == Screenshots ==
 1. Add terms and choose search locations on the Scanner page
 2. Live progress bar while a scan runs
@@ -84,9 +133,27 @@ No. It warns you that a monitored term was found so you can double check before 
 
 == Changelog ==
 
-= 1.2.2 = // TODO:
-* Tweak: Changed results time to AM/PM instead of military time
+= 1.3.0 =
+* Update: New admin design with a shared header and tabs (Scanner, Results, External Links, Omitted Sources, Errors, Settings), inheriting Admin Help Docs colors when active
+* Update: New Settings tab with import, export, and reset (replaces the Import/Export page)
+* Update: Added View and Scan roles; View roles get read-only access to Results and External Links (replaces the shortcode roles setting, which is migrated automatically)
+* Update: Added External Links scanning with notes and status filters
+* Update: Added "Only Scan Public Pages" setting and Deadbolt integration (replaces the Role Visibility integration)
+* Update: Restyled the front-end shortcode to match the admin screens
+* Update: Added optional removal of all plugin data on uninstall; uninstall now also clears the external links table, post meta, transients, and the scheduled scan
+* Update: Added developer hooks, including `ptscanner_file_text_replacements`, `ptscanner_can_view`, `ptscanner_can_scan`, and `ptscanner_is_public_post`
 * Update: Added excluded post types filters
+* Tweak: Results dates now use your site's date and time format
+* Fix: Matches in files missed because of ligatures, curly quotes, special spaces, non-UTF-8 text, or Word line breaks
+* Fix: Phrases split across two PDF pages were not found
+* Fix: Missing or unreadable files were skipped silently; they are now logged to the Errors page
+* Fix: Fatal errors during file scans now report the file being processed, and stale tracking data is cleared
+* Fix: Restricted pages were hidden from scheduled scans by access-control plugins
+* Fix: First "Un-Omit" click on an omitted source re-omitted it instead
+* Fix: Front-end External Links pagination also reloaded the Results panel
+* Fix: Results filters dropped terms containing "|" and filtered pagination lost the active filters
+* Fix: Security hardening of the media usage list output
+* Fix: Plugin Check compliance (escaping, nonces, translator comments, enqueued assets)
 
 = 1.2.1 =
 * Fix: Missing Location column in the Results page table that caused Source, Date, and Actions to misalign
