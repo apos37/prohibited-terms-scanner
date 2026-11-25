@@ -278,6 +278,21 @@
     margin: 0;
 }
 
+.ptscanner-shortcode-scanner {
+    container-type: inline-size;
+}
+
+.ptscanner-shortcode-scanner .ptscanner-results-table,
+.ptscanner-shortcode-scanner .ptscanner-ext-links-table {
+    min-width: 900px;
+}
+
+@container ( max-width: 900px ) {
+    .ptscanner-shortcode-scanner .ptscanner-scanner-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
 .ptscanner-panel-toolbar {
     padding: 16px 20px;
     border-bottom: 1px solid #eaecf0;

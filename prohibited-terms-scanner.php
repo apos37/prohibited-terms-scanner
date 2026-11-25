@@ -110,6 +110,7 @@ final class Bootstrap {
         $this->check_environment();
         add_action( 'plugins_loaded', [ $this, 'load_files' ] );
         add_action( 'plugins_loaded', [ $this, 'load_integrations' ], 20 );
+        add_action( 'init', [ $this, 'maybe_upgrade_tables' ] );
         register_activation_hook( __FILE__, [ $this, 'activate' ] );
     } // End __construct()
 
@@ -292,6 +293,21 @@ final class Bootstrap {
 
 
     /**
+     * Create or upgrade the plugin's database tables when their schema version changes
+     *
+     * @return void
+     */
+    public function maybe_upgrade_tables() : void {
+        if ( ! class_exists( DB::class ) || ! class_exists( ExternalLinksDB::class ) ) {
+            return;
+        }
+
+        DB::instance()->maybe_upgrade();
+        ExternalLinksDB::instance()->maybe_upgrade();
+    } // End maybe_upgrade_tables()
+
+
+    /**
      * Load each integration's integration.php file from inc/integrations/{slug}/.
      * Each integration.php gates itself on its companion plugin being active.
      *
@@ -325,8 +341,10 @@ final class Bootstrap {
      */
     public function activate() : void {
         require_once self::path( 'inc/db.php' );
+        require_once self::path( 'inc/external-links-db.php' );
 
         DB::instance()->create_table();
+        ExternalLinksDB::instance()->create_table();
 
         if ( ! get_option( 'ptscanner_activated_time' ) ) {
             update_option( 'ptscanner_activated_time', time(), false );

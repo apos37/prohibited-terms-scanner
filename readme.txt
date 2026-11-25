@@ -98,8 +98,10 @@ This plugin bundles the following library:
 == Screenshots ==
 1. Add terms and choose search locations on the Scanner page
 2. Live progress bar while a scan runs
-3. Results table with context, links, and resolution actions
-4. Settings page with search locations, post types, and performance options
+3. Results table with highlighted context, source links, notes, and actions
+4. External Links tab with flagged links highlighted
+5. Settings page with search locations, matching, scheduling, access roles, and data options
+6. Front-end shortcode scanner for staff with Scan access
 
 == Changelog ==
 
@@ -124,6 +126,8 @@ This plugin bundles the following library:
 * Fix: Results filters dropped terms containing "|" and filtered pagination lost the active filters
 * Fix: Security hardening of the media usage list output
 * Fix: Plugin Check compliance (escaping, nonces, translator comments, enqueued assets)
+* Fix: The External Links table was never created and database upgrades never ran
+* Fix: Front-end shortcode tables and boxes overflowing on themes with narrow content areas
 
 = 1.2.1 =
 * Fix: Missing Location column in the Results page table that caused Source, Date, and Actions to misalign

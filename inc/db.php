@@ -47,9 +47,7 @@ class DB {
     /**
      * Constructor
      */
-    private function __construct() {
-        add_action( 'plugins_loaded', [ $this, 'maybe_upgrade' ] );
-    } // End __construct()
+    private function __construct() {} // End __construct()
 
 
     /**
