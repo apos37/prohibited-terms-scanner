@@ -95,36 +95,6 @@ This plugin bundles the following library:
   License: LGPL-3.0 (see `vendor/pdfparser/LICENSE.txt` and `vendor/pdfparser/GPL-3.0.txt`)
   Used to extract text from PDF files for optional file content scanning. The library was namespace-prefixed and relocated to avoid conflicts with other plugins; all modifications are described in `vendor/pdfparser/NOTICE.txt`.
 
-== Developer Hooks ==
-
-**Filters**
-
-* `ptscanner_location_types` - Add or change scan locations.
-* `ptscanner_excluded_post_types` - Post types never offered for scanning.
-* `ptscanner_integration_managed_post_types` - Post types handled by an integration instead of the core scanner.
-* `ptscanner_is_public_post( $is_public, $post_id )` - Decide whether a post counts as public for "Only Scan Public Pages".
-* `ptscanner_deadbolt_url_param_is_public( $is_public, $post_id )` - Whether Deadbolt URL-parameter pages count as public.
-* `ptscanner_file_content_mimes` - File types whose content can be scanned.
-* `ptscanner_file_text_replacements` - Character replacements applied to extracted file text before matching.
-* `ptscanner_source_title( $title, $row )` - Source title shown for a result.
-* `ptscanner_cron_max_batches_per_type` - Safety cap on batches per location during scheduled scans (default 500).
-* `ptscanner_can_view( $can, $user_id )` / `ptscanner_can_scan( $can, $user_id )` - Override access checks.
-* `ptscanner_assignable_roles` - Roles offered in the View and Scan role settings.
-* `ptscanner_current_settings` / `ptscanner_export_data` / `ptscanner_resettable_options` - Adjust settings, exported data, and options cleared by Reset.
-* `ptscanner_admin_tabs` / `ptscanner_help_links` / `ptscanner_header_logo` - Customize the admin header and tabs.
-* `ptscanner_script_data` / `ptscanner_admin_script_data` - Data passed to the plugin's JavaScript.
-* `ptscanner_theme_colors` / `ptscanner_dynamic_css( $css, $type )` - Customize colors and generated CSS.
-* `ptscanner_test_mode` - Enable test mode behavior.
-
-**Actions**
-
-* `ptscanner_loaded` - After the plugin has loaded.
-* `ptscanner_admin_enqueue( $page )` - After admin assets are enqueued.
-* `ptscanner_subheader_left( $page )` / `ptscanner_subheader_right( $page )` - Output in the admin subheader.
-* `ptscanner_settings_saved( $settings )` / `ptscanner_settings_imported( $data )` / `ptscanner_settings_reset` - After settings change.
-* `ptscanner_reschedule_cron` - Reschedule the scheduled scan.
-* `ptscanner_cron_scan_complete( $total_inserted )` - After a scheduled scan finishes.
-
 == Screenshots ==
 1. Add terms and choose search locations on the Scanner page
 2. Live progress bar while a scan runs
